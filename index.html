@@ -42,8 +42,10 @@
         .card input:focus { border-color: var(--primary); }
         .btn-group { display: flex; gap: 10px; margin-top: 20px; }
         .card button { flex: 1; padding: 14px; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem; transition: 0.2s; }
+        
         #btn-host { background: var(--primary); } #btn-host:hover { background: var(--primary-hover); }
         #btn-viewer { background: #2196F3; } #btn-viewer:hover { background: #1976D2; }
+        #btn-mobile-share { background: #9c27b0; display: none; } #btn-mobile-share:hover { background: #7b1fa2; }
         #btn-open-login-settings { background: #333; width: 100%; margin-top: 10px; }
         
         /* Ana Ekran Düzeni (PC) */
@@ -67,6 +69,9 @@
         #play-overlay h2 { color: var(--primary); font-size: 1.8rem; margin-bottom: 10px; }
         #play-overlay button { padding: 12px 35px; font-size: 1.1rem; background: var(--primary); color: white; border: none; border-radius: 50px; cursor: pointer; margin-top: 15px; font-weight: bold; }
 
+        /* YENİ: ADMİN DUYURU EKRANI */
+        #admin-announcement-ui { display: none; position: absolute; top: 15%; left: 50%; transform: translateX(-50%); background: rgba(229, 9, 20, 0.95); padding: 25px 40px; border-radius: 12px; z-index: 99999; color: white; font-size: 2rem; font-weight: 900; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid #fff; pointer-events: none; }
+
         /* UÇUŞAN EMOJİLER VE REAKSİYON BARI */
         .reaction-bar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(20, 20, 20, 0.8); backdrop-filter: blur(10px); padding: 8px 15px; border-radius: 30px; display: flex; gap: 15px; z-index: 100; border: 1px solid rgba(255,255,255,0.1); }
         .reaction-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; transition: transform 0.2s; padding: 0; }
@@ -83,7 +88,8 @@
         .chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #0f0f0f; }
         .message { background: #222; padding: 10px 12px; border-radius: 10px; font-size: 0.9rem; line-height: 1.4; align-self: flex-start; max-width: 85%; word-wrap: break-word; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .message.me { background: #1a365d; align-self: flex-end; border-bottom-right-radius: 2px; }
-        .message:not(.me) { border-bottom-left-radius: 2px; }
+        .message.system { background: #333; color: #ffeb3b; align-self: center; text-align: center; border-radius: 20px; font-weight: bold; font-size: 0.8rem; }
+        .message:not(.me):not(.system) { border-bottom-left-radius: 2px; }
         .message .sender-info { display: flex; align-items: center; gap: 6px; font-weight: 600; color: #aaa; font-size: 0.75rem; margin-bottom: 4px; }
         .message.me .sender-info { color: #90caf9; }
         .msg-avatar { font-size: 1.1rem; }
@@ -120,10 +126,17 @@
         .w-title { font-size: 2.5rem; font-weight: 900; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; text-shadow: 2px 2px 10px rgba(0,0,0,0.5); }
         .w-highlight { color: #ffd700; font-size: 4.5rem; display: block; margin: 15px 0; font-weight: 900; text-shadow: 0 0 20px rgba(255, 215, 0, 0.5); }
 
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        @keyframes pulse { 0% { opacity: 1; transform: translateX(-50%) scale(1); } 50% { opacity: 0.8; transform: translateX(-50%) scale(1.05); } 100% { opacity: 1; transform: translateX(-50%) scale(1); } }
 
-        /* MOBİL TASARIM (Responsive) */
+        /* MOBİL TASARIM (Responsive) ve Mobil Buton Kuralları */
         @media (max-width: 768px) {
+            .btn-group { flex-direction: column; } /* Mobilde butonları alt alta diz */
+            
+            /* YENİ: Mobilde Host butonu deaktif ediliyor */
+            #btn-host { opacity: 0.5; pointer-events: none; position: relative; }
+            #btn-host::after { content: " (Mobil Deaktif)"; font-size: 0.8rem; display: block; font-weight: normal; margin-top: 3px; }
+            #btn-mobile-share { display: block !important; } /* Ekran Paylaş butonu aktif */
+
             .main-container { flex-direction: column; height: 100dvh; } 
             .header { padding: 10px; flex-direction: column; align-items: flex-start; gap: 10px; }
             .header-left h2 { font-size: 1rem; }
@@ -229,7 +242,7 @@
             <button id="btn-open-login-settings" class="ctrl-btn settings" style="justify-content:center;">⚙️ Profilini Ayarla</button>
             <div class="btn-group">
                 <button id="btn-host">Yayıncı Ol</button>
-                <button id="btn-viewer">İzleyici Ol</button>
+                <button id="btn-mobile-share">📱 Ekran Paylaş</button> <button id="btn-viewer">İzleyici Ol</button>
             </div>
         </div>
     </div>
@@ -261,6 +274,8 @@
                         <button id="force-play-btn">▶ Başlat</button>
                     </div>
 
+                    <div id="admin-announcement-ui">📢 DUYURU BURAYA GELECEK</div>
+
                     <div id="floating-emoji-container"></div>
                     <div class="reaction-bar">
                         <button class="reaction-btn" onclick="window.sendReaction('😂')">😂</button>
@@ -281,10 +296,11 @@
                 <div class="chat-messages" id="chat-messages"></div>
                 <div id="admin-panel">
                     <h4>👑 Admin Menüsü <button id="btn-clear-chat">Sohbeti Temizle</button></h4>
+                    <p style="font-size: 0.75rem; color: #888; margin-bottom: 8px;">/admin [mesaj] ve /zar komutlarını kullanabilirsiniz.</p>
                     <ul id="admin-user-list"></ul>
                 </div>
                 <div class="chat-input-area">
-                    <input type="text" id="chat-input" placeholder="Mesaj yaz...">
+                    <input type="text" id="chat-input" placeholder="Mesaj veya komut (/zar)...">
                     <button id="chat-send-btn">Gönder</button>
                 </div>
             </div>
@@ -292,12 +308,11 @@
     </div>
 
     <script type="module">
-        // Firebase Modülleri
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getDatabase, ref, set, get, remove, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
-        // Senin Firebase Yapılandırman
+        // Firebase Yapılandırması
         const firebaseConfig = {
             apiKey: "AIzaSyAUh4qKPlNo7K9j6VtKVUHrp8PwaBpa7WE",
             authDomain: "survivor-d69a5.firebaseapp.com",
@@ -344,14 +359,14 @@
         const pttBtnMobile = document.getElementById('ptt-btn-mobile');
         const mainUiContainer = document.getElementById('main-ui-container');
 
-        // --- YENİ: FIREBASE KİMLİK DOĞRULAMA (AUTH) ---
+        // --- KİMLİK DOĞRULAMA (AUTH) ---
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 myUsername = user.displayName || user.email.split('@')[0];
                 document.getElementById('auth-card').style.display = 'none';
                 document.getElementById('room-controls').style.display = 'block';
                 document.getElementById('display-username').innerText = myUsername;
-                document.getElementById('username-input').value = myUsername; // İsmi varsayılan olarak ata
+                document.getElementById('username-input').value = myUsername; 
                 document.getElementById('btn-logout').style.display = 'inline-block';
                 showToast(`Hoş geldin, ${myUsername}!`, 'success');
             } else {
@@ -382,7 +397,22 @@
             document.getElementById('settings-modal').classList.remove('active');
         });
 
-        // --- YENİ: UÇUŞAN EMOJİLER (FLOATING REACTIONS) ---
+        // --- ADMİN DUYURU FONKSİYONU (SLASH COMMAND İÇİN) ---
+        window.showAdminAnnouncement = function(msg) {
+            const el = document.getElementById('admin-announcement-ui');
+            el.innerText = `📢 DUYURU: ${msg}`;
+            el.style.display = 'block';
+            el.style.animation = 'pulse 1s infinite';
+            
+            addChatMessage("Sistem", "📢", `DUYURU: ${msg}`, false); // Chate de gönder
+            
+            setTimeout(() => { 
+                el.style.display = 'none'; 
+                el.style.animation = ''; 
+            }, 6000); // 6 saniye sonra kapat
+        };
+
+        // --- UÇUŞAN EMOJİLER (FLOATING REACTIONS) ---
         window.sendReaction = function(emoji) {
             spawnFloatingEmoji(emoji);
             stats.emojiCount++;
@@ -399,7 +429,6 @@
             document.getElementById('floating-emoji-container').appendChild(el);
             setTimeout(() => el.remove(), 2500);
         }
-
 
         // --- AYARLAR MODALI & İLETİŞİM MODU ---
         const settingsModal = document.getElementById('settings-modal');
@@ -420,7 +449,7 @@
         document.getElementById('voice-mode-select').addEventListener('change', (e) => {
             isPttMode = (e.target.value === 'ptt');
             if(isPttMode && micStream) {
-                micStream.getAudioTracks().forEach(t => t.enabled = false); // PTT açılınca varsayılan sessiz
+                micStream.getAudioTracks().forEach(t => t.enabled = false);
                 pttBtnMobile.style.display = 'flex';
                 btnMic.innerHTML = "🛑 Bas-Konuş Bekliyor";
                 btnMic.style.background = "#e50914";
@@ -571,20 +600,27 @@
 
         function addChatMessage(sender, avatar, text, isMe) {
             const div = document.createElement('div');
-            div.className = `message ${isMe ? 'me' : ''}`;
-            div.innerHTML = `<div class="sender-info"><span class="msg-avatar">${avatar}</span> ${sender}</div><div class="msg-text">${text}</div>`;
+            // Sistem komutları ve normal mesaj ayrımı
+            if (sender === "Sistem") div.className = `message system`;
+            else div.className = `message ${isMe ? 'me' : ''}`;
+            
+            if (sender === "Sistem") {
+                div.innerHTML = `${avatar} ${text}`;
+            } else {
+                div.innerHTML = `<div class="sender-info"><span class="msg-avatar">${avatar}</span> ${sender}</div><div class="msg-text">${text}</div>`;
+            }
+            
             chatMessages.appendChild(div);
             chatMessages.scrollTop = chatMessages.scrollHeight; 
             
             stats.totalMsgCount++;
-            if (isMe) stats.myMsgCount++;
+            if (isMe && sender !== "Sistem") stats.myMsgCount++;
             stats.userMsgCounts[sender] = (stats.userMsgCounts[sender] || 0) + 1;
             const emojiMatch = text.match(/\p{Emoji}/gu);
             if(emojiMatch) stats.emojiCount += emojiMatch.length;
         }
 
         function executeDisconnect() {
-            // YENİ: Firebase'den odayı temizle
             if (isHost && roomCode) { remove(ref(database, 'rooms/' + roomCode)); }
 
             if (myStream) myStream.getTracks().forEach(t => t.stop());
@@ -609,7 +645,7 @@
             if (confirm("Odadan ayrılmak istediğinize emin misiniz?")) showWrappedAndDisconnect();
         });
 
-        // --- YENİ: MEKANSAL SES (SPATIAL AUDIO) MANTIĞI EKLENDİ ---
+        // --- MEKANSAL SES (SPATIAL AUDIO) MANTIĞI ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
         function handleIncomingVoice(call) {
@@ -617,18 +653,16 @@
             call.on('stream', audioStream => {
                 if (audioCtx.state === 'suspended') audioCtx.resume();
                 
-                // 3D Ses İşleme Aşaması
                 const source = audioCtx.createMediaStreamSource(audioStream);
                 const panner = audioCtx.createStereoPanner();
-                panner.pan.value = (Math.random() * 2) - 1; // Her kişiye -1 (Sol) ile +1 (Sağ) arası rastgele konum
+                panner.pan.value = (Math.random() * 2) - 1; 
                 const destination = audioCtx.createMediaStreamDestination();
                 
                 source.connect(panner);
                 panner.connect(destination);
 
-                // Orijinal Ses Çıktısı Mantığı (Ayarları ve Cihazları korumak için)
                 const audio = document.createElement('audio');
-                audio.srcObject = destination.stream; // İşlenmiş 3D sesi oynatıcıya ver
+                audio.srcObject = destination.stream; 
                 audio.autoplay = true;
                 audio.muted = isSpeakerMuted; 
                 
@@ -645,7 +679,7 @@
             });
         }
 
-        // SES BAĞLANTISI (Aynı Kaldı)
+        // SES BAĞLANTISI
         btnMic.addEventListener('click', async () => {
             if (micStream) {
                 micStream.getTracks().forEach(t => t.stop()); micStream = null;
@@ -677,8 +711,8 @@
             }
         });
 
-        // --- YAYINCI (HOST) MANTIĞI (YENİ: Firebase DB Entegrasyonu) ---
-        document.getElementById('btn-host').addEventListener('click', async () => {
+        // --- YAYINCI (HOST) VE MOBİL EKRAN PAYLAŞIMI ORTAK MANTIĞI ---
+        const startHostingProcess = async () => {
             roomCode = document.getElementById('room-input').value.trim();
             myUsername = document.getElementById('username-input').value.trim() || "Yayıncı";
             if(!roomCode) return showToast("Lütfen Oda Kodu girin!", "error");
@@ -689,7 +723,7 @@
                 try {
                     myStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
                     showToast("Sistem sesi aktarılamıyor, sessiz yayın başladı.", "info");
-                } catch (mobileErr) { return showToast("Cihaz ekran paylaşımını desteklemiyor!", "error"); }
+                } catch (mobileErr) { return showToast("Cihaz ekran paylaşımını desteklemiyor veya reddedildi!", "error"); }
             }
 
             videoElement.srcObject = myStream;
@@ -697,11 +731,10 @@
             isHost = true;
             document.getElementById('admin-panel').style.display = 'block'; 
 
-            peer = new Peer(); // Sinyalleşme için rastgele ID oluşturur (Geliştirilmiş Güvenlik)
+            peer = new Peer(); 
             peer.on('open', (id) => { 
                 hostId = id;
                 
-                // Odayı Firebase Veritabanına Yaz
                 set(ref(database, 'rooms/' + roomCode), {
                     hostId: hostId,
                     hostName: myUsername,
@@ -729,7 +762,7 @@
                         addChatMessage(data.sender, data.avatar, data.text, false);
                         viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); });
                     }
-                    else if (data.type === 'REACTION') { // Reaksiyon Dağıtıcı
+                    else if (data.type === 'REACTION') { 
                         spawnFloatingEmoji(data.emoji);
                         viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); });
                     }
@@ -741,9 +774,13 @@
             });
 
             myStream.getVideoTracks()[0].onended = () => { showToast("Paylaşım durduruldu.", "error"); showWrappedAndDisconnect(); };
-        });
+        };
 
-        // --- İZLEYİCİ (VIEWER) MANTIĞI (YENİ: Firebase DB Entegrasyonu) ---
+        // İki Butonu da Aynı Host İşlemine Bağlıyoruz
+        document.getElementById('btn-host').addEventListener('click', startHostingProcess);
+        document.getElementById('btn-mobile-share').addEventListener('click', startHostingProcess);
+
+        // --- İZLEYİCİ (VIEWER) MANTIĞI ---
         document.getElementById('btn-viewer').addEventListener('click', () => {
             roomCode = document.getElementById('room-input').value.trim();
             myUsername = document.getElementById('username-input').value.trim() || "İzleyici";
@@ -752,7 +789,6 @@
             isHost = false;
             document.getElementById('admin-panel').style.display = 'none';
 
-            // Firebase'den Gerçek Oda ID'sini Öğren
             get(ref(database, 'rooms/' + roomCode)).then((snapshot) => {
                 if(!snapshot.exists()) return showToast("Böyle bir oda bulunamadı!", "error");
                 
@@ -771,6 +807,7 @@
                         else if (data.type === 'REACTION') spawnFloatingEmoji(data.emoji);
                         else if (data.type === 'CLEAR_CHAT') { chatMessages.innerHTML = ''; showToast("Sohbet temizlendi.", "info"); }
                         else if (data.type === 'KICK') { showToast("Odadan atıldınız!", "error"); setTimeout(showWrappedAndDisconnect, 1000); }
+                        else if (data.type === 'ADMIN_MSG') { window.showAdminAnnouncement(data.text); } // YENİ: Admin Mesajı Dinleyici
                     });
 
                     peer.on('call', call => {
@@ -790,10 +827,45 @@
 
         document.getElementById('force-play-btn').addEventListener('click', () => { playOverlay.style.display = 'none'; videoElement.play(); });
 
-        // --- SOHBET ---
+        // --- SOHBET VE SLASH KOMUTLARI EKLENTİSİ ---
         function sendMessage() {
             const text = chatInput.value.trim();
             if(!text) return;
+
+            // YENİ: Slash (/) Komut Kontrolü
+            if (text.startsWith('/')) {
+                if (!isHost) {
+                    showToast("Bu komutları sadece oda kurucusu kullanabilir!", "error");
+                    chatInput.value = '';
+                    return;
+                }
+
+                if (text === '/zar' || text === '/roll') {
+                    const dice = Math.floor(Math.random() * 6) + 1;
+                    const msg = `🎲 Zar atıldı ve ${dice} geldi!`;
+                    const msgData = { type: 'CHAT', sender: "Sistem", avatar: "🤖", text: msg };
+                    
+                    viewers.forEach(v => v.conn.send(msgData));
+                    addChatMessage("Sistem", "🤖", msg, false);
+                    chatInput.value = '';
+                    return;
+                }
+
+                if (text.startsWith('/admin ')) {
+                    const msg = text.replace('/admin ', '');
+                    const msgData = { type: 'ADMIN_MSG', text: msg };
+                    
+                    viewers.forEach(v => v.conn.send(msgData));
+                    window.showAdminAnnouncement(msg); // Kendi ekranında da göster
+                    chatInput.value = '';
+                    return;
+                }
+                
+                showToast("Geçersiz veya eksik komut girdiniz!", "error");
+                return;
+            }
+
+            // Normal Mesaj Gönderimi
             const msgData = { type: 'CHAT', sender: myUsername, avatar: myAvatar, text: text };
             if(isHost) { viewers.forEach(v => v.conn.send(msgData)); addChatMessage(myUsername, myAvatar, text, true); } 
             else { if(hostConnection?.open) { hostConnection.send(msgData); addChatMessage(myUsername, myAvatar, text, true); } else showToast("Bağlantı yok.", "error"); }
