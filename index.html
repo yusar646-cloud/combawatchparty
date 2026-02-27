@@ -132,7 +132,7 @@
         @media (max-width: 768px) {
             .btn-group { flex-direction: column; } /* Mobilde butonları alt alta diz */
             
-            /* YENİ: Mobilde Host butonu deaktif ediliyor */
+            /* Mobilde Host butonu deaktif ediliyor */
             #btn-host { opacity: 0.5; pointer-events: none; position: relative; }
             #btn-host::after { content: " (Mobil Deaktif)"; font-size: 0.8rem; display: block; font-weight: normal; margin-top: 3px; }
             #btn-mobile-share { display: block !important; } /* Ekran Paylaş butonu aktif */
@@ -312,7 +312,6 @@
         import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getDatabase, ref, set, get, remove, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
-        // Firebase Yapılandırması
         const firebaseConfig = {
             apiKey: "AIzaSyAUh4qKPlNo7K9j6VtKVUHrp8PwaBpa7WE",
             authDomain: "survivor-d69a5.firebaseapp.com",
@@ -331,7 +330,6 @@
         // --- İSTATİSTİKLER (WRAPPED İÇİN) ---
         let stats = { startTime: 0, myMsgCount: 0, totalMsgCount: 0, emojiCount: 0, userMsgCounts: {} };
 
-        // --- TOAST BİLDİRİMLERİ ---
         function showToast(message, type = 'info') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -343,7 +341,6 @@
             setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3000);
         }
 
-        // --- GLOBAL DEĞİŞKENLER ---
         let peer = null, myStream = null, micStream = null;
         let isHost = false, myUsername = "Anonim", myAvatar = "👤", roomCode = "", hostId = "";
         let hostConnection = null, viewers = new Map(), activeVoiceCalls = new Map(), activeAudioElements = []; 
@@ -397,22 +394,15 @@
             document.getElementById('settings-modal').classList.remove('active');
         });
 
-        // --- ADMİN DUYURU FONKSİYONU (SLASH COMMAND İÇİN) ---
         window.showAdminAnnouncement = function(msg) {
             const el = document.getElementById('admin-announcement-ui');
             el.innerText = `📢 DUYURU: ${msg}`;
             el.style.display = 'block';
             el.style.animation = 'pulse 1s infinite';
-            
-            addChatMessage("Sistem", "📢", `DUYURU: ${msg}`, false); // Chate de gönder
-            
-            setTimeout(() => { 
-                el.style.display = 'none'; 
-                el.style.animation = ''; 
-            }, 6000); // 6 saniye sonra kapat
+            addChatMessage("Sistem", "📢", `DUYURU: ${msg}`, false); 
+            setTimeout(() => { el.style.display = 'none'; el.style.animation = ''; }, 6000); 
         };
 
-        // --- UÇUŞAN EMOJİLER (FLOATING REACTIONS) ---
         window.sendReaction = function(emoji) {
             spawnFloatingEmoji(emoji);
             stats.emojiCount++;
@@ -430,7 +420,6 @@
             setTimeout(() => el.remove(), 2500);
         }
 
-        // --- AYARLAR MODALI & İLETİŞİM MODU ---
         const settingsModal = document.getElementById('settings-modal');
         let selectedMicId = 'default', selectedSpeakerId = 'default';
         let isPttMode = false, isWhisperMode = false, isTalking = false;
@@ -462,7 +451,6 @@
 
         document.getElementById('whisper-mode-toggle').addEventListener('change', (e) => isWhisperMode = e.target.checked);
 
-        // --- SES KARIŞTIRICI VE HOPARLÖR ---
         document.getElementById('mix-video-vol').addEventListener('input', (e) => { videoElement.volume = e.target.value / 100; });
         document.getElementById('mix-chat-vol').addEventListener('input', (e) => {
             const vol = e.target.value / 100;
@@ -510,7 +498,6 @@
             }
         });
 
-        // --- BAS-KONUŞ (PTT) MEKANİĞİ ---
         function startTalking() {
             if(!isPttMode || !micStream || isTalking) return;
             isTalking = true;
@@ -531,7 +518,6 @@
         pttBtnMobile.addEventListener('mousedown', startTalking); pttBtnMobile.addEventListener('mouseup', stopTalking); pttBtnMobile.addEventListener('mouseleave', stopTalking);
         pttBtnMobile.addEventListener('touchstart', (e) => { e.preventDefault(); startTalking(); }); pttBtnMobile.addEventListener('touchend', (e) => { e.preventDefault(); stopTalking(); });
 
-        // --- SPOTIFY WRAPPED MEKANİĞİ ---
         function showWrappedAndDisconnect() {
             if (!stats.startTime) return executeDisconnect(); 
             
@@ -565,7 +551,6 @@
             }, delay + 1000);
         }
 
-        // --- GÖRÜNÜM MODLARI ---
         let isTheaterMode = false;
         document.getElementById('btn-theater').addEventListener('click', () => {
             isTheaterMode = !isTheaterMode;
@@ -587,7 +572,6 @@
         document.getElementById('btn-cinema').addEventListener('click', toggleCinemaMode);
         document.getElementById('btn-cinema-exit').addEventListener('click', toggleCinemaMode);
 
-        // --- ARAYÜZ FONKSİYONLARI ---
         function switchScreen(room, role) {
             document.getElementById('room-display').innerText = room;
             document.getElementById('role-display').innerText = role;
@@ -600,7 +584,6 @@
 
         function addChatMessage(sender, avatar, text, isMe) {
             const div = document.createElement('div');
-            // Sistem komutları ve normal mesaj ayrımı
             if (sender === "Sistem") div.className = `message system`;
             else div.className = `message ${isMe ? 'me' : ''}`;
             
@@ -645,7 +628,6 @@
             if (confirm("Odadan ayrılmak istediğinize emin misiniz?")) showWrappedAndDisconnect();
         });
 
-        // --- MEKANSAL SES (SPATIAL AUDIO) MANTIĞI ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
         function handleIncomingVoice(call) {
@@ -679,7 +661,6 @@
             });
         }
 
-        // SES BAĞLANTISI
         btnMic.addEventListener('click', async () => {
             if (micStream) {
                 micStream.getTracks().forEach(t => t.stop()); micStream = null;
@@ -711,19 +692,41 @@
             }
         });
 
-        // --- YAYINCI (HOST) VE MOBİL EKRAN PAYLAŞIMI ORTAK MANTIĞI ---
+        // YENİ: MOBİL YAYIN KURTARMA (FALLBACK) VE GESTURE KORUMASI
         const startHostingProcess = async () => {
             roomCode = document.getElementById('room-input').value.trim();
             myUsername = document.getElementById('username-input').value.trim() || "Yayıncı";
             if(!roomCode) return showToast("Lütfen Oda Kodu girin!", "error");
 
             try {
-                myStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: "never" }, audio: true });
+                if (navigator.mediaDevices.getDisplayMedia) {
+                    // Cihazın mobil olup olmadığını anlıyoruz.
+                    const isMobile = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent);
+                    
+                    // Mobilde 'audio: true' istemek anında iptale veya sistem çökmelerine neden olur.
+                    myStream = await navigator.mediaDevices.getDisplayMedia({ 
+                        video: true, 
+                        audio: !isMobile 
+                    });
+                    
+                    if (isMobile) showToast("Mobil cihazlarda ekran paylaşılırken sistem sesi aktarılamaz.", "info");
+                } else {
+                    // Cihaz getDisplayMedia desteklemiyorsa (Örn: iOS Safari) hata fırlat
+                    throw new Error("NotSupportedError");
+                }
             } catch (err) {
+                // Kullanıcı "İptal" butonuna bastıysa veya izin verilmediyse
+                if (err.name === "NotAllowedError" || err.message.includes("Permission denied") || err.name === "AbortError") {
+                    return showToast("Ekran paylaşım izni reddedildi veya iptal edildi!", "error");
+                }
+                
+                // Cihaz desteklemiyorsa yayını kurtarmak için Arka Kamera (Fallback) aç
                 try {
-                    myStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-                    showToast("Sistem sesi aktarılamıyor, sessiz yayın başladı.", "info");
-                } catch (mobileErr) { return showToast("Cihaz ekran paylaşımını desteklemiyor veya reddedildi!", "error"); }
+                    myStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: true });
+                    showToast("Cihaz ekran paylaşımını desteklemiyor, arka kamera yayını başladı.", "info");
+                } catch (camErr) {
+                    return showToast("Yayın başlatılamadı, cihazınız desteklemiyor.", "error");
+                }
             }
 
             videoElement.srcObject = myStream;
@@ -734,7 +737,6 @@
             peer = new Peer(); 
             peer.on('open', (id) => { 
                 hostId = id;
-                
                 set(ref(database, 'rooms/' + roomCode), {
                     hostId: hostId,
                     hostName: myUsername,
@@ -776,11 +778,9 @@
             myStream.getVideoTracks()[0].onended = () => { showToast("Paylaşım durduruldu.", "error"); showWrappedAndDisconnect(); };
         };
 
-        // İki Butonu da Aynı Host İşlemine Bağlıyoruz
         document.getElementById('btn-host').addEventListener('click', startHostingProcess);
         document.getElementById('btn-mobile-share').addEventListener('click', startHostingProcess);
 
-        // --- İZLEYİCİ (VIEWER) MANTIĞI ---
         document.getElementById('btn-viewer').addEventListener('click', () => {
             roomCode = document.getElementById('room-input').value.trim();
             myUsername = document.getElementById('username-input').value.trim() || "İzleyici";
@@ -807,7 +807,7 @@
                         else if (data.type === 'REACTION') spawnFloatingEmoji(data.emoji);
                         else if (data.type === 'CLEAR_CHAT') { chatMessages.innerHTML = ''; showToast("Sohbet temizlendi.", "info"); }
                         else if (data.type === 'KICK') { showToast("Odadan atıldınız!", "error"); setTimeout(showWrappedAndDisconnect, 1000); }
-                        else if (data.type === 'ADMIN_MSG') { window.showAdminAnnouncement(data.text); } // YENİ: Admin Mesajı Dinleyici
+                        else if (data.type === 'ADMIN_MSG') { window.showAdminAnnouncement(data.text); } 
                     });
 
                     peer.on('call', call => {
@@ -827,12 +827,10 @@
 
         document.getElementById('force-play-btn').addEventListener('click', () => { playOverlay.style.display = 'none'; videoElement.play(); });
 
-        // --- SOHBET VE SLASH KOMUTLARI EKLENTİSİ ---
         function sendMessage() {
             const text = chatInput.value.trim();
             if(!text) return;
 
-            // YENİ: Slash (/) Komut Kontrolü
             if (text.startsWith('/')) {
                 if (!isHost) {
                     showToast("Bu komutları sadece oda kurucusu kullanabilir!", "error");
@@ -856,7 +854,7 @@
                     const msgData = { type: 'ADMIN_MSG', text: msg };
                     
                     viewers.forEach(v => v.conn.send(msgData));
-                    window.showAdminAnnouncement(msg); // Kendi ekranında da göster
+                    window.showAdminAnnouncement(msg); 
                     chatInput.value = '';
                     return;
                 }
@@ -865,7 +863,6 @@
                 return;
             }
 
-            // Normal Mesaj Gönderimi
             const msgData = { type: 'CHAT', sender: myUsername, avatar: myAvatar, text: text };
             if(isHost) { viewers.forEach(v => v.conn.send(msgData)); addChatMessage(myUsername, myAvatar, text, true); } 
             else { if(hostConnection?.open) { hostConnection.send(msgData); addChatMessage(myUsername, myAvatar, text, true); } else showToast("Bağlantı yok.", "error"); }
@@ -875,7 +872,6 @@
         document.getElementById('chat-send-btn').addEventListener('click', sendMessage);
         document.getElementById('chat-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') sendMessage(); });
 
-        // --- ADMİN (Host) ---
         function updateAdminPanel() {
             const list = document.getElementById('admin-user-list');
             list.innerHTML = '';
