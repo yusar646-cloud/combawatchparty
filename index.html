@@ -24,7 +24,7 @@
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 99999; padding: 20px; }
         .modal-overlay.active { display: flex; }
         .modal { background: var(--card-bg); padding: 25px; border-radius: 12px; width: 100%; max-width: 420px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); max-height: 90vh; overflow-y: auto; }
-        .modal h2 { margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; font-size: 1.2rem; }
+        .modal h2 { margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; font-size: 1.2rem; display: flex; justify-content: space-between; align-items: center; }
         .setting-group { margin-bottom: 15px; background: #141414; padding: 12px; border-radius: 8px; border: 1px solid #2a2a2a; }
         .setting-group label { display: block; margin-bottom: 8px; color: #aaa; font-size: 0.85rem; font-weight: bold; text-transform: uppercase; }
         .setting-group select, .setting-group input[type="range"] { width: 100%; padding: 10px; border-radius: 6px; background: #2a2a2a; border: 1px solid var(--border-color); color: white; outline: none; }
@@ -34,7 +34,7 @@
         .modal-close { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; }
 
         /* Giriş Ekranı */
-        #login-screen { height: 100vh; justify-content: center; align-items: center; padding: 20px; }
+        #login-screen { height: 100vh; justify-content: center; align-items: center; padding: 20px; flex-direction: column; gap: 20px;}
         .card { background: var(--card-bg); padding: 35px; border-radius: 16px; text-align: center; width: 100%; max-width: 400px; box-shadow: 0 15px 50px rgba(0,0,0,0.6); border: 1px solid #2a2a2a; }
         .card h1 { margin-top: 0; color: var(--primary); font-size: 2rem; margin-bottom: 5px; }
         .card p { color: #888; margin-bottom: 25px; font-size: 0.9rem; }
@@ -66,6 +66,14 @@
         #play-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.85); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 10; backdrop-filter: blur(5px); }
         #play-overlay h2 { color: var(--primary); font-size: 1.8rem; margin-bottom: 10px; }
         #play-overlay button { padding: 12px 35px; font-size: 1.1rem; background: var(--primary); color: white; border: none; border-radius: 50px; cursor: pointer; margin-top: 15px; font-weight: bold; }
+
+        /* UÇUŞAN EMOJİLER VE REAKSİYON BARI */
+        .reaction-bar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(20, 20, 20, 0.8); backdrop-filter: blur(10px); padding: 8px 15px; border-radius: 30px; display: flex; gap: 15px; z-index: 100; border: 1px solid rgba(255,255,255,0.1); }
+        .reaction-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; transition: transform 0.2s; padding: 0; }
+        .reaction-btn:hover { transform: scale(1.3); }
+        #floating-emoji-container { position: absolute; inset: 0; pointer-events: none; z-index: 99; overflow: hidden; }
+        .floating-emoji { position: absolute; bottom: 50px; font-size: 2rem; opacity: 1; animation: floatUp 2.5s ease-out forwards; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+        @keyframes floatUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 50% { transform: translateY(-150px) scale(1.5) translateX(20px); opacity: 0.8; } 100% { transform: translateY(-300px) scale(1); opacity: 0; } }
 
         /* Sohbet Paneli (PC) */
         .sidebar { flex: 1; background: #141414; border-left: 1px solid var(--border-color); display: flex; flex-direction: column; max-width: 350px; transition: 0.3s transform, 0.3s opacity, 0.3s max-width; }
@@ -131,6 +139,8 @@
             .chat-input-area { padding: 10px; padding-bottom: max(10px, env(safe-area-inset-bottom)); } 
             #btn-theater { display: none; } 
             #ptt-btn-mobile { bottom: 100px; }
+            .reaction-bar { bottom: 10px; padding: 5px 10px; gap: 10px; }
+            .reaction-btn { font-size: 1.2rem; }
         }
     </style>
 </head>
@@ -143,30 +153,18 @@
             <div class="w-title">Gecenin Özeti 🍿</div>
             <p style="font-size: 1.2rem;">Zaman çok hızlı akıyor...</p>
         </div>
+        <div class="w-slide">Beraber tam <span class="w-highlight" id="w-stat-time">0</span> dakika film izlediniz!</div>
+        <div class="w-slide">Sohbete sen <span class="w-highlight" id="w-stat-msg">0</span> mesaj gönderdin.</div>
+        <div class="w-slide">Odanın en gevezesi: <span class="w-highlight" id="w-stat-top">Kimse</span></div>
         <div class="w-slide">
-            Beraber tam
-            <span class="w-highlight" id="w-stat-time">0</span>
-            dakika film izlediniz!
-        </div>
-        <div class="w-slide">
-            Sohbete sen
-            <span class="w-highlight" id="w-stat-msg">0</span>
-            mesaj gönderdin.
-        </div>
-        <div class="w-slide">
-            Odanın en gevezesi:
-            <span class="w-highlight" id="w-stat-top">Kimse</span>
-        </div>
-        <div class="w-slide">
-            Ayrıca sohbette toplam
-            <span class="w-highlight" id="w-stat-emoji">0</span>
-            emoji kullandınız! <br><span style="font-size: 1.2rem; color: #ddd;">Harika bir yayın partisiydi, tekrar görüşmek üzere...</span>
+            Ayrıca sohbette toplam <span class="w-highlight" id="w-stat-emoji">0</span> emoji kullandınız! <br>
+            <span style="font-size: 1.2rem; color: #ddd;">Harika bir yayın partisiydi, tekrar görüşmek üzere...</span>
         </div>
     </div>
 
     <div class="modal-overlay" id="settings-modal">
         <div class="modal">
-            <h2>⚙️ Profil & Ayarlar</h2>
+            <h2>⚙️ Profil & Ayarlar <button id="btn-logout" style="background:#444; color:#fff; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:0.8rem; display:none;">Çıkış Yap</button></h2>
             <div class="setting-group">
                 <label>Profil Avatarı</label>
                 <div class="avatar-selector">
@@ -210,10 +208,23 @@
     <div id="ptt-btn-mobile" title="Konuşmak için basılı tut">🎙️</div>
 
     <div id="login-screen" class="screen active">
-        <div class="card">
+        <div class="card" id="auth-card">
             <h1>🍿 Comba Watch Party</h1>
-            <p>GS 5-2 Juve</p>
-            <input type="text" id="username-input" placeholder="Kullanıcı Adın (Örn: Pamcık)">
+            <p>Devam etmek için giriş yapın</p>
+            <input type="email" id="email-input" placeholder="E-posta Adresin">
+            <input type="password" id="password-input" placeholder="Şifren">
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+                <button id="btn-email-login" style="background: var(--primary); padding: 12px; border:none; color:white; border-radius:6px; cursor:pointer; font-weight:bold;">Giriş Yap / Kayıt Ol</button>
+                <button id="btn-google-login" style="background: #fff; color: #333; padding: 12px; border:none; border-radius:6px; cursor:pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google" style="width:20px;"> Google ile Giriş Yap
+                </button>
+            </div>
+        </div>
+
+        <div class="card" id="room-controls" style="display: none;">
+            <h1>🍿 Comba Watch Party</h1>
+            <p>Hoş geldin, <span id="display-username" style="color:var(--primary); font-weight:bold;"></span>!</p>
+            <input type="text" id="username-input" placeholder="Görünen Adın (Örn: Pamcık)">
             <input type="text" id="room-input" placeholder="Oda Kodu (Örn: 1234)">
             <button id="btn-open-login-settings" class="ctrl-btn settings" style="justify-content:center;">⚙️ Profilini Ayarla</button>
             <div class="btn-group">
@@ -249,6 +260,16 @@
                         <p>Sesi açmak ve yayına katılmak için tıklayın.</p>
                         <button id="force-play-btn">▶ Başlat</button>
                     </div>
+
+                    <div id="floating-emoji-container"></div>
+                    <div class="reaction-bar">
+                        <button class="reaction-btn" onclick="window.sendReaction('😂')">😂</button>
+                        <button class="reaction-btn" onclick="window.sendReaction('😍')">😍</button>
+                        <button class="reaction-btn" onclick="window.sendReaction('😮')">😮</button>
+                        <button class="reaction-btn" onclick="window.sendReaction('😭')">😭</button>
+                        <button class="reaction-btn" onclick="window.sendReaction('🔥')">🔥</button>
+                        <button class="reaction-btn" onclick="window.sendReaction('🍿')">🍿</button>
+                    </div>
                 </div>
             </div>
 
@@ -270,7 +291,28 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        // Firebase Modülleri
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getDatabase, ref, set, get, remove, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+        // Senin Firebase Yapılandırman
+        const firebaseConfig = {
+            apiKey: "AIzaSyAUh4qKPlNo7K9j6VtKVUHrp8PwaBpa7WE",
+            authDomain: "survivor-d69a5.firebaseapp.com",
+            databaseURL: "https://survivor-d69a5-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "survivor-d69a5",
+            storageBucket: "survivor-d69a5.firebasestorage.app",
+            messagingSenderId: "998975421906",
+            appId: "1:998975421906:web:972c493b782cce9576dc0b",
+            measurementId: "G-VRR63HL878"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const database = getDatabase(app);
+
         // --- İSTATİSTİKLER (WRAPPED İÇİN) ---
         let stats = { startTime: 0, myMsgCount: 0, totalMsgCount: 0, emojiCount: 0, userMsgCounts: {} };
 
@@ -301,6 +343,63 @@
         const btnSpeaker = document.getElementById('btn-speaker');
         const pttBtnMobile = document.getElementById('ptt-btn-mobile');
         const mainUiContainer = document.getElementById('main-ui-container');
+
+        // --- YENİ: FIREBASE KİMLİK DOĞRULAMA (AUTH) ---
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                myUsername = user.displayName || user.email.split('@')[0];
+                document.getElementById('auth-card').style.display = 'none';
+                document.getElementById('room-controls').style.display = 'block';
+                document.getElementById('display-username').innerText = myUsername;
+                document.getElementById('username-input').value = myUsername; // İsmi varsayılan olarak ata
+                document.getElementById('btn-logout').style.display = 'inline-block';
+                showToast(`Hoş geldin, ${myUsername}!`, 'success');
+            } else {
+                document.getElementById('auth-card').style.display = 'block';
+                document.getElementById('room-controls').style.display = 'none';
+                document.getElementById('btn-logout').style.display = 'none';
+            }
+        });
+
+        document.getElementById('btn-google-login').addEventListener('click', () => {
+            signInWithPopup(auth, new GoogleAuthProvider()).catch(err => showToast(err.message, 'error'));
+        });
+
+        document.getElementById('btn-email-login').addEventListener('click', () => {
+            const email = document.getElementById('email-input').value;
+            const pass = document.getElementById('password-input').value;
+            if(!email || !pass) return showToast('E-posta ve şifre giriniz', 'error');
+            
+            signInWithEmailAndPassword(auth, email, pass).catch(err => {
+                if(err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+                    createUserWithEmailAndPassword(auth, email, pass).catch(e => showToast(e.message, 'error'));
+                } else showToast('Giriş Hatası: ' + err.message, 'error');
+            });
+        });
+
+        document.getElementById('btn-logout').addEventListener('click', () => {
+            signOut(auth);
+            document.getElementById('settings-modal').classList.remove('active');
+        });
+
+        // --- YENİ: UÇUŞAN EMOJİLER (FLOATING REACTIONS) ---
+        window.sendReaction = function(emoji) {
+            spawnFloatingEmoji(emoji);
+            stats.emojiCount++;
+            const data = { type: 'REACTION', emoji: emoji };
+            if (isHost) viewers.forEach(v => v.conn.send(data));
+            else if (hostConnection?.open) hostConnection.send(data);
+        };
+
+        function spawnFloatingEmoji(emoji) {
+            const el = document.createElement('div');
+            el.className = 'floating-emoji';
+            el.innerText = emoji;
+            el.style.left = `${Math.random() * 80 + 10}%`; 
+            document.getElementById('floating-emoji-container').appendChild(el);
+            setTimeout(() => el.remove(), 2500);
+        }
+
 
         // --- AYARLAR MODALI & İLETİŞİM MODU ---
         const settingsModal = document.getElementById('settings-modal');
@@ -346,7 +445,7 @@
             isSpeakerMuted = !isSpeakerMuted;
             if (isSpeakerMuted) {
                 btnSpeaker.classList.add('active'); btnSpeaker.innerHTML = "🔇 Sohbet Sessiz";
-                activeAudioElements.forEach(a => a.muted = true); // Sadece insanları susturur, videoyu değil!
+                activeAudioElements.forEach(a => a.muted = true);
                 showToast("Sohbet sesleri kapatıldı.", "info");
             } else {
                 btnSpeaker.classList.remove('active'); btnSpeaker.innerHTML = "🔊 Sohbet Sesi";
@@ -359,7 +458,6 @@
             }
         });
 
-        // Cihaz Seçimi
         document.getElementById('btn-refresh-devices').addEventListener('click', async () => {
             try {
                 await navigator.mediaDevices.getUserMedia({audio: true});
@@ -399,14 +497,8 @@
             btnMic.innerHTML = "🛑 Bas-Konuş Bekliyor"; btnMic.style.background = "#e50914";
         }
         
-        // PC Space Tuşu
-        window.addEventListener('keydown', (e) => { 
-            if (e.code === 'Space' && e.target.tagName !== 'INPUT' && isPttMode && micStream) { e.preventDefault(); startTalking(); } 
-        });
-        window.addEventListener('keyup', (e) => { 
-            if (e.code === 'Space' && e.target.tagName !== 'INPUT' && isPttMode) { e.preventDefault(); stopTalking(); } 
-        });
-        // Mobil Buton
+        window.addEventListener('keydown', (e) => { if (e.code === 'Space' && e.target.tagName !== 'INPUT' && isPttMode && micStream) { e.preventDefault(); startTalking(); } });
+        window.addEventListener('keyup', (e) => { if (e.code === 'Space' && e.target.tagName !== 'INPUT' && isPttMode) { e.preventDefault(); stopTalking(); } });
         pttBtnMobile.addEventListener('mousedown', startTalking); pttBtnMobile.addEventListener('mouseup', stopTalking); pttBtnMobile.addEventListener('mouseleave', stopTalking);
         pttBtnMobile.addEventListener('touchstart', (e) => { e.preventDefault(); startTalking(); }); pttBtnMobile.addEventListener('touchend', (e) => { e.preventDefault(); stopTalking(); });
 
@@ -474,8 +566,6 @@
             document.getElementById('video-screen').classList.add('active');
             chatMessages.innerHTML = ''; 
             addChatMessage("Sistem", "💻", "Odaya katıldınız. İyi seyirler!", false);
-            
-            // İstatislikleri Başlat
             stats = { startTime: Date.now(), myMsgCount: 0, totalMsgCount: 0, emojiCount: 0, userMsgCounts: {} };
         }
 
@@ -486,7 +576,6 @@
             chatMessages.appendChild(div);
             chatMessages.scrollTop = chatMessages.scrollHeight; 
             
-            // Wrapped İstatisliklerini Güncelle
             stats.totalMsgCount++;
             if (isMe) stats.myMsgCount++;
             stats.userMsgCounts[sender] = (stats.userMsgCounts[sender] || 0) + 1;
@@ -495,6 +584,9 @@
         }
 
         function executeDisconnect() {
+            // YENİ: Firebase'den odayı temizle
+            if (isHost && roomCode) { remove(ref(database, 'rooms/' + roomCode)); }
+
             if (myStream) myStream.getTracks().forEach(t => t.stop());
             if (micStream) micStream.getTracks().forEach(t => t.stop());
             if (peer) peer.destroy();
@@ -517,7 +609,43 @@
             if (confirm("Odadan ayrılmak istediğinize emin misiniz?")) showWrappedAndDisconnect();
         });
 
-        // --- SES (MİKROFON) MANTIĞI ---
+        // --- YENİ: MEKANSAL SES (SPATIAL AUDIO) MANTIĞI EKLENDİ ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function handleIncomingVoice(call) {
+            call.answer();
+            call.on('stream', audioStream => {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                
+                // 3D Ses İşleme Aşaması
+                const source = audioCtx.createMediaStreamSource(audioStream);
+                const panner = audioCtx.createStereoPanner();
+                panner.pan.value = (Math.random() * 2) - 1; // Her kişiye -1 (Sol) ile +1 (Sağ) arası rastgele konum
+                const destination = audioCtx.createMediaStreamDestination();
+                
+                source.connect(panner);
+                panner.connect(destination);
+
+                // Orijinal Ses Çıktısı Mantığı (Ayarları ve Cihazları korumak için)
+                const audio = document.createElement('audio');
+                audio.srcObject = destination.stream; // İşlenmiş 3D sesi oynatıcıya ver
+                audio.autoplay = true;
+                audio.muted = isSpeakerMuted; 
+                
+                const isWhisper = call.metadata?.whisper;
+                audio.dataset.whisper = isWhisper ? 'true' : 'false';
+                
+                if(typeof audio.setSinkId !== 'undefined' && selectedSpeakerId !== 'default') audio.setSinkId(selectedSpeakerId).catch(()=>{});
+                const baseVol = document.getElementById('mix-chat-vol').value / 100;
+                audio.volume = isWhisper ? baseVol * 0.3 : baseVol;
+                
+                document.body.appendChild(audio);
+                activeAudioElements.push(audio);
+                call.on('close', () => { audio.remove(); activeAudioElements = activeAudioElements.filter(a => a !== audio); });
+            });
+        }
+
+        // SES BAĞLANTISI (Aynı Kaldı)
         btnMic.addEventListener('click', async () => {
             if (micStream) {
                 micStream.getTracks().forEach(t => t.stop()); micStream = null;
@@ -549,28 +677,7 @@
             }
         });
 
-        function handleIncomingVoice(call) {
-            call.answer();
-            call.on('stream', audioStream => {
-                const audio = document.createElement('audio');
-                audio.srcObject = audioStream;
-                audio.autoplay = true;
-                audio.muted = isSpeakerMuted; 
-                
-                const isWhisper = call.metadata?.whisper;
-                audio.dataset.whisper = isWhisper ? 'true' : 'false';
-                
-                if(typeof audio.setSinkId !== 'undefined' && selectedSpeakerId !== 'default') audio.setSinkId(selectedSpeakerId).catch(()=>{});
-                const baseVol = document.getElementById('mix-chat-vol').value / 100;
-                audio.volume = isWhisper ? baseVol * 0.3 : baseVol;
-                
-                document.body.appendChild(audio);
-                activeAudioElements.push(audio);
-                call.on('close', () => { audio.remove(); activeAudioElements = activeAudioElements.filter(a => a !== audio); });
-            });
-        }
-
-        // --- YAYINCI (HOST) MANTIĞI ---
+        // --- YAYINCI (HOST) MANTIĞI (YENİ: Firebase DB Entegrasyonu) ---
         document.getElementById('btn-host').addEventListener('click', async () => {
             roomCode = document.getElementById('room-input').value.trim();
             myUsername = document.getElementById('username-input').value.trim() || "Yayıncı";
@@ -587,13 +694,23 @@
 
             videoElement.srcObject = myStream;
             videoElement.muted = true; 
-            
             isHost = true;
-            hostId = 'bizim-wp-host-' + roomCode;
             document.getElementById('admin-panel').style.display = 'block'; 
 
-            peer = new Peer(hostId);
-            peer.on('open', () => { statusText.innerText = "Yayın Aktif!"; switchScreen(roomCode, "Yayıncı"); showToast("Oda başarıyla kuruldu.", "success"); });
+            peer = new Peer(); // Sinyalleşme için rastgele ID oluşturur (Geliştirilmiş Güvenlik)
+            peer.on('open', (id) => { 
+                hostId = id;
+                
+                // Odayı Firebase Veritabanına Yaz
+                set(ref(database, 'rooms/' + roomCode), {
+                    hostId: hostId,
+                    hostName: myUsername,
+                    createdAt: serverTimestamp()
+                });
+
+                statusText.innerText = "Yayın Aktif!"; switchScreen(roomCode, "Yayıncı"); showToast("Oda başarıyla kuruldu.", "success"); 
+            });
+
             peer.on('call', call => { if (call.metadata?.type === 'voice') handleIncomingVoice(call); });
 
             peer.on('connection', conn => {
@@ -612,6 +729,10 @@
                         addChatMessage(data.sender, data.avatar, data.text, false);
                         viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); });
                     }
+                    else if (data.type === 'REACTION') { // Reaksiyon Dağıtıcı
+                        spawnFloatingEmoji(data.emoji);
+                        viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); });
+                    }
                 });
                 conn.on('close', () => { 
                     const vData = viewers.get(conn.peer); if(vData) showToast(`${vData.username} odadan ayrıldı.`, "info");
@@ -622,42 +743,49 @@
             myStream.getVideoTracks()[0].onended = () => { showToast("Paylaşım durduruldu.", "error"); showWrappedAndDisconnect(); };
         });
 
-        // --- İZLEYİCİ (VIEWER) MANTIĞI ---
+        // --- İZLEYİCİ (VIEWER) MANTIĞI (YENİ: Firebase DB Entegrasyonu) ---
         document.getElementById('btn-viewer').addEventListener('click', () => {
             roomCode = document.getElementById('room-input').value.trim();
             myUsername = document.getElementById('username-input').value.trim() || "İzleyici";
             if(!roomCode) return showToast("Lütfen Oda Kodu girin!", "error");
 
             isHost = false;
-            hostId = 'bizim-wp-host-' + roomCode;
             document.getElementById('admin-panel').style.display = 'none';
 
-            peer = new Peer(); 
-            peer.on('open', () => {
-                statusText.innerText = "Yayıncı aranıyor...";
-                switchScreen(roomCode, "İzleyici");
+            // Firebase'den Gerçek Oda ID'sini Öğren
+            get(ref(database, 'rooms/' + roomCode)).then((snapshot) => {
+                if(!snapshot.exists()) return showToast("Böyle bir oda bulunamadı!", "error");
+                
+                hostId = snapshot.val().hostId;
+                
+                peer = new Peer(); 
+                peer.on('open', () => {
+                    statusText.innerText = "Yayıncı aranıyor...";
+                    switchScreen(roomCode, "İzleyici");
 
-                hostConnection = peer.connect(hostId, { metadata: { username: myUsername, avatar: myAvatar } });
-                hostConnection.on('open', () => { statusText.innerText = "Görüntü bekleniyor..."; showToast("Yayıncıya bağlanıldı!", "success"); });
+                    hostConnection = peer.connect(hostId, { metadata: { username: myUsername, avatar: myAvatar } });
+                    hostConnection.on('open', () => { statusText.innerText = "Görüntü bekleniyor..."; showToast("Yayıncıya bağlanıldı!", "success"); });
 
-                hostConnection.on('data', data => {
-                    if (data.type === 'CHAT') addChatMessage(data.sender, data.avatar, data.text, false);
-                    else if (data.type === 'CLEAR_CHAT') { chatMessages.innerHTML = ''; showToast("Sohbet temizlendi.", "info"); }
-                    else if (data.type === 'KICK') { showToast("Odadan atıldınız!", "error"); setTimeout(showWrappedAndDisconnect, 1000); }
+                    hostConnection.on('data', data => {
+                        if (data.type === 'CHAT') addChatMessage(data.sender, data.avatar, data.text, false);
+                        else if (data.type === 'REACTION') spawnFloatingEmoji(data.emoji);
+                        else if (data.type === 'CLEAR_CHAT') { chatMessages.innerHTML = ''; showToast("Sohbet temizlendi.", "info"); }
+                        else if (data.type === 'KICK') { showToast("Odadan atıldınız!", "error"); setTimeout(showWrappedAndDisconnect, 1000); }
+                    });
+
+                    peer.on('call', call => {
+                        if (call.metadata?.type === 'screen') {
+                            call.answer(); 
+                            call.on('stream', rStream => {
+                                videoElement.srcObject = rStream; statusText.innerText = "Bağlı";
+                                videoElement.onloadedmetadata = () => videoElement.play().catch(() => playOverlay.style.display = 'flex');
+                            });
+                        } else if (call.metadata?.type === 'voice') { handleIncomingVoice(call); }
+                    });
+
+                    peer.on('error', err => { if (err.type === 'peer-unavailable') { showToast("Yayıncıya ulaşılamıyor!", "error"); setTimeout(executeDisconnect, 2000); } });
                 });
-
-                peer.on('call', call => {
-                    if (call.metadata?.type === 'screen') {
-                        call.answer(); 
-                        call.on('stream', rStream => {
-                            videoElement.srcObject = rStream; statusText.innerText = "Bağlı";
-                            videoElement.onloadedmetadata = () => videoElement.play().catch(() => playOverlay.style.display = 'flex');
-                        });
-                    } else if (call.metadata?.type === 'voice') { handleIncomingVoice(call); }
-                });
-
-                peer.on('error', err => { if (err.type === 'peer-unavailable') { showToast("Yayıncı odayı kurmamış!", "error"); setTimeout(executeDisconnect, 2000); } });
-            });
+            }).catch(error => showToast("Oda kontrol edilemedi.", "error"));
         });
 
         document.getElementById('force-play-btn').addEventListener('click', () => { playOverlay.style.display = 'none'; videoElement.play(); });
@@ -681,7 +809,7 @@
             list.innerHTML = '';
             viewers.forEach((v, peerId) => {
                 const li = document.createElement('li'); li.className = 'admin-user-item';
-                li.innerHTML = `<span>${v.avatar} ${v.username}</span> <button class="kick-btn" onclick="kickUser('${peerId}')">At</button>`;
+                li.innerHTML = `<span>${v.avatar} ${v.username}</span> <button class="kick-btn" onclick="window.kickUser('${peerId}')">At</button>`;
                 list.appendChild(li);
             });
         }
