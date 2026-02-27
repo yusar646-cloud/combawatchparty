@@ -20,7 +20,7 @@
         .toast.error { border-left-color: #f44336; }
         .toast.info { border-left-color: #2196F3; }
         
-        /* Modallar */
+        /* Ayarlar Modalı */
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 99999; padding: 20px; }
         .modal-overlay.active { display: flex; }
         .modal { background: var(--card-bg); padding: 25px; border-radius: 12px; width: 100%; max-width: 420px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); max-height: 90vh; overflow-y: auto; }
@@ -45,9 +45,10 @@
         
         #btn-host { background: var(--primary); } #btn-host:hover { background: var(--primary-hover); }
         #btn-viewer { background: #2196F3; } #btn-viewer:hover { background: #1976D2; }
-        #btn-mobile-share { background: #9c27b0; display: none; } #btn-mobile-share:hover { background: #7b1fa2; }
         #btn-open-login-settings { background: #333; width: 100%; margin-top: 10px; }
         
+        #mobile-host-warning { display: none; color: #ffeb3b; font-size: 0.8rem; margin-top: 15px; padding: 10px; background: rgba(255, 235, 59, 0.1); border-radius: 6px; border: 1px solid rgba(255, 235, 59, 0.3); }
+
         /* Ana Ekran Düzeni (PC) */
         .main-container { display: flex; width: 100vw; height: 100vh; transition: 0.3s; }
         .video-section { flex: 3; display: flex; flex-direction: column; background: #000; position: relative; transition: flex 0.3s; }
@@ -142,12 +143,12 @@
 
         @keyframes pulse { 0% { opacity: 1; transform: translateX(-50%) scale(1); } 50% { opacity: 0.8; transform: translateX(-50%) scale(1.05); } 100% { opacity: 1; transform: translateX(-50%) scale(1); } }
 
-        /* MOBİL TASARIM (Responsive) ve Mobil Buton Kuralları */
+        /* MOBİL TASARIM (Responsive) */
         @media (max-width: 768px) {
-            .btn-group { flex-direction: column; } 
-            #btn-host { opacity: 0.5; pointer-events: none; position: relative; }
-            #btn-host::after { content: " (Mobil Deaktif)"; font-size: 0.8rem; display: block; font-weight: normal; margin-top: 3px; }
-            #btn-mobile-share { display: block !important; }
+            /* Mobilde Host Butonu Kaldırılır, Uyarı Gösterilir */
+            #btn-host { display: none !important; }
+            #mobile-host-warning { display: block; }
+            #btn-viewer { width: 100%; }
 
             .main-container { flex-direction: column; height: 100dvh; } 
             .header { padding: 10px; flex-direction: column; align-items: flex-start; gap: 10px; }
@@ -172,18 +173,6 @@
 <body>
 
     <div id="toast-container"></div>
-
-    <div class="modal-overlay" id="debug-modal">
-        <div class="modal" style="border-left: 4px solid #f44336;">
-            <h2 style="color: #f44336; font-size: 1.3rem;">⚠️ Ekran Paylaşım Hatası</h2>
-            <p style="font-size: 0.9rem; color: #ccc; margin-bottom: 15px;">Sistem ekranı paylaşırken bir engelle karşılaştı. Lütfen aşağıdaki kodu kopyalayıp bana (yapay zekaya) gönderin.</p>
-            <div style="background: #111; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 0.85rem; color: #ffeb3b; word-wrap: break-word; max-height: 150px; overflow-y: auto;" id="debug-error-text">
-                Hata detayı bekleniyor...
-            </div>
-            <button class="modal-close" id="btn-copy-error" style="background: #2196F3; margin-top: 15px;">📋 Kodu Kopyala</button>
-            <button class="modal-close" id="btn-close-debug" style="background: #444; margin-top: 8px;">Kapat</button>
-        </div>
-    </div>
 
     <div id="wrapped-overlay">
         <div class="w-slide">
@@ -265,10 +254,10 @@
             <input type="text" id="room-input" placeholder="Oda Kodu (Örn: 1234)">
             <button id="btn-open-login-settings" class="ctrl-btn settings" style="justify-content:center;">⚙️ Profilini Ayarla</button>
             <div class="btn-group">
-                <button id="btn-host">Yayıncı Ol</button>
-                <button id="btn-mobile-share">📱 Ekran Paylaş</button>
+                <button id="btn-host">PC'den Yayıncı Ol</button>
                 <button id="btn-viewer">İzleyici Ol</button>
             </div>
+            <div id="mobile-host-warning">⚠️ Yayın kurmak ve ekran paylaşmak için bilgisayardan (PC/Mac) girmelisiniz. Telefondan yayın açılamaz.</div>
         </div>
     </div>
 
@@ -416,20 +405,6 @@
         document.getElementById('btn-logout').addEventListener('click', () => {
             signOut(auth);
             document.getElementById('settings-modal').classList.remove('active');
-        });
-
-        // HATA KOPYALAMA İŞLEMİ
-        document.getElementById('btn-copy-error').addEventListener('click', () => {
-            const errText = document.getElementById('debug-error-text').innerText;
-            navigator.clipboard.writeText(errText).then(() => {
-                showToast("Hata kodu panoya kopyalandı! Bana yapıştır.", "success");
-            }).catch(() => {
-                showToast("Otomatik kopyalanamadı, lütfen metni seçip kopyalayın.", "error");
-            });
-        });
-        
-        document.getElementById('btn-close-debug').addEventListener('click', () => {
-            document.getElementById('debug-modal').classList.remove('active');
         });
 
         // --- GÖRSEL EFEKTLER (JUMPSCARE & KUTLAMA) ---
@@ -760,29 +735,23 @@
             });
         }
 
-        // --- YAYIN BAŞLATMA (HATA AYIKLAMA MODU EKLENDİ) ---
+        // --- YAYIN BAŞLATMA (YALNIZCA PC İÇİN) ---
         const startHostingProcess = async () => {
             roomCode = document.getElementById('room-input').value.trim();
             myUsername = document.getElementById('username-input').value.trim() || "Yayıncı";
             if(!roomCode) return showToast("Lütfen Oda Kodu girin!", "error");
 
             try {
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-                    throw new Error("Tarayıcınız getDisplayMedia API'sini desteklemiyor. (iOS kısıtlaması veya Güvenli Olmayan HTTP Bağlantısı)");
-                }
-                
-                const isMobile = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent);
-                // Ekran isteğinde bulun
-                myStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: !isMobile });
-                
+                // Sadece PC'den yayın açılabileceği için doğrudan ses ve ekran istenir.
+                myStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
             } catch (err) {
-                // HATA AYIKLAMA (DEBUG) MODALI
-                const isSecure = window.isSecureContext ? "Evet (Güvenli)" : "Hayır (HTTPS Gerekli!)";
-                const errDetails = `Hata Adı: ${err.name}\nHata Mesajı: ${err.message}\nHTTPS Aktif mi?: ${isSecure}\nTarayıcı: ${navigator.userAgent}`;
-                
-                document.getElementById('debug-error-text').innerText = errDetails;
-                document.getElementById('debug-modal').classList.add('active');
-                return; // Devam etme, yayını kes ki hatayı görebilelim.
+                try {
+                    // Kullanıcı sistemi sesini paylaşmayı reddettiyse veya Mac kullanıyorsa
+                    myStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                    showToast("Sistem sesi aktarılamıyor, sessiz yayın başladı.", "info");
+                } catch (err2) {
+                    return showToast("Ekran paylaşım izni reddedildi!", "error");
+                }
             }
 
             videoElement.srcObject = myStream; videoElement.muted = true; 
@@ -798,10 +767,10 @@
             if(myStream.getVideoTracks().length > 0) myStream.getVideoTracks()[0].onended = () => { showToast("Paylaşım durduruldu.", "error"); showWrappedAndDisconnect(); };
         };
 
+        // Yayını sadece "PC'den Yayıncı Ol" butonu başlatır.
         document.getElementById('btn-host').addEventListener('click', startHostingProcess);
-        document.getElementById('btn-mobile-share').addEventListener('click', startHostingProcess);
 
-        // --- İZLEYİCİ KATILIMI ---
+        // --- İZLEYİCİ KATILIMI (MOBİL VEYA PC FARK ETMEZ) ---
         window.connectToNewHost = function(targetHostId) {
             statusText.innerText = "Bağlanıyor...";
             if (hostConnection) hostConnection.close();
@@ -894,7 +863,7 @@
                 myStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
             } catch (err) {
                 try { myStream = await navigator.mediaDevices.getDisplayMedia({ video: true }); } 
-                catch (err2) { myStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: true }); }
+                catch (err2) { return showToast("Ekran paylaşım izni verilmedi!", "error"); }
             }
             videoElement.srcObject = myStream; videoElement.muted = true;
             document.getElementById('role-display').innerText = "Yayıncı";
