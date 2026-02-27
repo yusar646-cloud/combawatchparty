@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍿 Comba Watch Party (Ultimate Edition)</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root { --primary: #e50914; --primary-hover: #b20710; --bg-color: #141414; --card-bg: #222; --text-color: #fff; }
+        body { margin: 0; font-family: 'Segoe UI', Tahoma, sans-serif; background-color: var(--bg-color); color: var(--text-color); overflow-x: hidden; }
+        .screen { display: none; }
+        .screen.active { display: flex; }
+        
+        /* Toast Bildirimleri (Alert Yerine) */
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 999999; display: flex; flex-direction: column; gap: 10px; }
+        .toast { background: #333; color: #fff; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); border-left: 5px solid var(--primary); font-weight: bold; transform: translateX(120%); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; align-items: center; gap: 10px; }
+        .toast.show { transform: translateX(0); }
+        .toast.success { border-left-color: #4CAF50; }
+        .toast.error { border-left-color: #f44336; }
+        .toast.info { border-left-color: #2196F3; }
+        
+        /* Ayarlar Modalı */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 99999; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: var(--card-bg); padding: 30px; border-radius: 10px; width: 100%; max-width: 450px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); }
+        .modal h2 { margin-top: 0; border-bottom: 1px solid #444; padding-bottom: 10px; }
+        .setting-group { margin-bottom: 20px; }
+        .setting-group label { display: block; margin-bottom: 8px; color: #aaa; font-size: 0.9rem; font-weight: bold; }
+        .setting-group select, .setting-group input[type="range"] { width: 100%; padding: 10px; border-radius: 5px; background: #333; border: 1px solid #555; color: white; outline: none; }
+        .avatar-selector { display: flex; gap: 10px; flex-wrap: wrap; }
+        .avatar-option { font-size: 1.5rem; cursor: pointer; padding: 5px; border-radius: 5px; border: 2px solid transparent; transition: 0.2s; background: #333; }
+        .avatar-option.selected { border-color: var(--primary); background: #444; transform: scale(1.1); }
+        .modal-close { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+
+        /* Giriş Ekranı */
+        #login-screen { height: 100vh; justify-content: center; align-items: center; }
+        .card { background: var(--card-bg); padding: 40px; border-radius: 10px; text-align: center; width: 100%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .card h1 { margin-top: 0; color: var(--primary); }
+        .card p { color: #aaa; margin-bottom: 25px; font-size: 0.95rem; }
+        .card input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #444; border-radius: 5px; background: #333; color: white; box-sizing: border-box; font-size: 16px; text-align: center; }
+        
+        .btn-group { display: flex; gap: 10px; margin-top: 15px; }
+        .card button { flex: 1; padding: 15px; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 15px; transition: 0.3s; }
+        #btn-host { background: var(--primary); } #btn-host:hover { background: var(--primary-hover); }
+        #btn-viewer { background: #4CAF50; } #btn-viewer:hover { background: #45a049; }
+        
+        /* Ana Ekran Düzeni */
+        .main-container { display: flex; width: 100vw; height: 100vh; transition: 0.3s; }
+        
+        /* Video Bölümü */
+        .video-section { flex: 3; display: flex; flex-direction: column; background: #000; position: relative; transition: flex 0.3s; }
+        .header { background: #111; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; transition: 0.3s; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .header h2 { margin: 0; font-size: 1.2rem; color: #fff; display: flex; align-items: center; gap: 10px; }
+        
+        .header-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+        .header-controls button { padding: 8px 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: white; transition: 0.2s; display: flex; align-items: center; gap: 5px; }
+        #btn-theater { background: #0288d1; } #btn-theater:hover { background: #0277bd; }
+        #btn-pip { background: #00796b; } #btn-pip:hover { background: #00695c; }
+        #btn-cinema { background: #673ab7; } #btn-cinema:hover { background: #512da8; }
+        #btn-mic { background: #555; } #btn-mic.active { background: #e50914; animation: pulse 1.5s infinite; }
+        #btn-settings { background: #444; } #btn-settings:hover { background: #666; }
+        #leave-btn { background: #333; border: 1px solid #555; } #leave-btn:hover { background: #555; }
+        
+        .video-wrapper { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; background: #000; }
+        #main-video { width: 100%; height: 100%; max-height: calc(100vh - 70px); outline: none; transition: 0.3s; }
+        
+        #play-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.85); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 10; }
+        #play-overlay h2 { color: var(--primary); font-size: 2rem; }
+        #play-overlay button { padding: 15px 40px; font-size: 18px; background: var(--primary); color: white; border: none; border-radius: 50px; cursor: pointer; margin-top: 15px; font-weight: bold; }
+
+        /* Sohbet ve Admin Paneli */
+        .sidebar { flex: 1; background: var(--card-bg); border-left: 1px solid #333; display: flex; flex-direction: column; max-width: 350px; transition: 0.3s transform, 0.3s opacity, 0.3s max-width; }
+        .sidebar-header { padding: 15px; background: #111; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+        .sidebar-header h3 { margin: 0; font-size: 1.1rem; }
+        
+        .chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .message { background: #333; padding: 10px; border-radius: 8px; font-size: 0.9rem; line-height: 1.4; align-self: flex-start; max-width: 85%; word-wrap: break-word; display: flex; gap: 8px; flex-direction: column; }
+        .message.me { background: #0d47a1; align-self: flex-end; }
+        .message .sender-info { display: flex; align-items: center; gap: 5px; font-weight: bold; color: #aaa; font-size: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 3px; }
+        .message.me .sender-info { color: #64b5f6; }
+        .msg-avatar { font-size: 1.2rem; }
+        
+        .chat-input-area { padding: 15px; background: #111; border-top: 1px solid #333; display: flex; gap: 10px; }
+        #chat-input { flex: 1; padding: 10px; border-radius: 5px; border: 1px solid #444; background: #222; color: white; outline: none; }
+        #chat-send-btn { padding: 10px 15px; background: var(--primary); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+
+        /* Admin Kontrolleri */
+        #admin-panel { display: none; background: #2a2a2a; border-top: 1px solid #444; padding: 15px; }
+        #admin-panel h4 { margin: 0 0 10px 0; color: #ffeb3b; display: flex; justify-content: space-between; align-items: center; }
+        #btn-clear-chat { padding: 5px 10px; background: #555; border: none; color: white; border-radius: 3px; cursor: pointer; font-size: 0.8rem; }
+        #admin-user-list { list-style: none; padding: 0; margin: 0; max-height: 100px; overflow-y: auto; }
+        .admin-user-item { display: flex; justify-content: space-between; align-items: center; background: #1a1a1a; padding: 8px; margin-bottom: 5px; border-radius: 5px; font-size: 0.9rem; }
+        .kick-btn { background: #e50914; color: white; border: none; padding: 5px 8px; border-radius: 3px; cursor: pointer; font-size: 0.8rem; font-weight: bold; }
+
+        /* TİYATRO MODU (Sohbeti Gizle) */
+        .main-container.theater-mode .sidebar { max-width: 0; opacity: 0; overflow: hidden; border: none; padding: 0; }
+        .main-container.theater-mode .video-section { flex: 10; }
+
+        /* SİNEMA MODU (Tam Ekran Siyah) */
+        body.cinema-mode .sidebar { display: none; }
+        body.cinema-mode .header { display: none; }
+        body.cinema-mode .video-section { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; background: #000; }
+        body.cinema-mode #main-video { max-height: 100vh; }
+        #btn-cinema-exit { display: none; position: fixed; top: 20px; right: 20px; z-index: 10000; background: rgba(229, 9, 20, 0.8); padding: 10px 20px; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 16px; }
+        body.cinema-mode #btn-cinema-exit { display: block; }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        @media (max-width: 768px) { .main-container { flex-direction: column; } .sidebar { max-width: 100%; border-left: none; border-top: 1px solid #333; height: 40vh; } .video-section { height: 60vh; } }
+    </style>
+</head>
+<body>
+
+    <div id="toast-container"></div>
+
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal">
+            <h2>⚙️ Ayarlar</h2>
+            
+            <div class="setting-group">
+                <label>Profil Avatarı Seçin</label>
+                <div class="avatar-selector" id="avatar-selector">
+                    <div class="avatar-option selected">👤</div>
+                    <div class="avatar-option">🦊</div>
+                    <div class="avatar-option">🐱</div>
+                    <div class="avatar-option">🐼</div>
+                    <div class="avatar-option">🦁</div>
+                    <div class="avatar-option">🐸</div>
+                    <div class="avatar-option">👽</div>
+                    <div class="avatar-option">👻</div>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <label>🔊 Ses Karıştırıcı (Audio Mixer)</label>
+                <span style="font-size:0.8rem; color:#888;">Film Sesi</span>
+                <input type="range" id="mix-video-vol" min="0" max="100" value="100">
+                <span style="font-size:0.8rem; color:#888; display:block; margin-top:5px;">Sohbet (Mikrofon) Sesi</span>
+                <input type="range" id="mix-chat-vol" min="0" max="100" value="100">
+            </div>
+
+            <div class="setting-group">
+                <label>🎤 Cihaz Seçimi</label>
+                <button id="btn-refresh-devices" style="margin-bottom:5px; padding:5px; background:#444; border:none; color:white; border-radius:3px; cursor:pointer; font-size:0.8rem;">Cihazları Yenile (İzin İster)</button>
+                <select id="mic-select"><option value="default">Varsayılan Mikrofon</option></select>
+                <select id="speaker-select" style="margin-top:5px;"><option value="default">Varsayılan Hoparlör</option></select>
+            </div>
+
+            <button class="modal-close" id="btn-close-settings">Kaydet ve Kapat</button>
+        </div>
+    </div>
+
+    <div id="login-screen" class="screen active">
+        <div class="card">
+            <h1>🍿Comba Watch Party</h1>
+            <p>GS 5-2 JUVE</p>
+            <input type="text" id="username-input" placeholder="Kullanıcı Adın (Örn: Ali)">
+            <input type="text" id="room-input" placeholder="Oda Kodu Belirle (Örn: 1234)">
+            <button id="btn-open-login-settings" style="background:#444; margin-top:5px;">⚙️ Profil & Ayarlar</button>
+            <div class="btn-group">
+                <button id="btn-host">Yayıncı Ol<br><small>(Odayı Kur)</small></button>
+                <button id="btn-viewer">İzleyici Ol<br><small>(Odaya Katıl)</small></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="video-screen" class="screen">
+        <button id="btn-cinema-exit">❌ Sinema Modundan Çık</button>
+        
+        <div class="main-container" id="main-ui-container">
+            <div class="video-section">
+                <div class="header">
+                    <div class="header-left">
+                        <h2>🍿 Oda: <span id="room-display">...</span> (<span id="role-display">...</span>)</h2>
+                    </div>
+                    <div class="header-controls">
+                        <button id="btn-theater" title="Sohbeti Daralt/Genişlet">↔️ Tiyatro</button>
+                        <button id="btn-pip" title="Pencere İçinde Pencere">📺 PiP Modu</button>
+                        <button id="btn-cinema" title="Işıkları Kapat">🎬 Sinema</button>
+                        <button id="btn-mic">🎤 Mikrofon</button>
+                        <button id="btn-settings" title="Ayarlar">⚙️</button>
+                        <button id="leave-btn">Çıkış</button>
+                    </div>
+                </div>
+                
+                <div class="video-wrapper">
+                    <video id="main-video" controls autoplay playsinline></video>
+                    <div id="play-overlay">
+                        <h2>🍿 Yayın Aktif</h2>
+                        <p>Sesi açmak ve canlı yayına katılmak için tıklayın.</p>
+                        <button id="force-play-btn">▶ İzlemeye Başla</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <h3>💬 Lobi Sohbeti</h3>
+                    <span id="status-text" style="color:#0f0; font-size: 0.8rem;">Bağlanılıyor...</span>
+                </div>
+                <div class="chat-messages" id="chat-messages"></div>
+                
+                <div id="admin-panel">
+                    <h4>👑 Admin Menüsü <button id="btn-clear-chat">Sohbeti Temizle</button></h4>
+                    <ul id="admin-user-list"></ul>
+                </div>
+
+                <div class="chat-input-area">
+                    <input type="text" id="chat-input" placeholder="Mesaj yaz...">
+                    <button id="chat-send-btn">Gönder</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- TOAST BİLDİRİM SİSTEMİ (Alert Katili) ---
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            let icon = 'ℹ️';
+            if(type === 'success') icon = '✅';
+            if(type === 'error') icon = '⚠️';
+            
+            toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
+            container.appendChild(toast);
+            
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // --- GLOBAL DEĞİŞKENLER ---
+        let peer = null;
+        let myStream = null; 
+        let micStream = null; 
+        let isHost = false;
+        let myUsername = "Anonim";
+        let myAvatar = "👤";
+        let roomCode = "";
+        let hostId = "";
+        
+        let hostConnection = null; 
+        let viewers = new Map(); 
+        let activeVoiceCalls = new Map(); 
+        let activeAudioElements = []; // Ses Karıştırıcı için
+
+        const videoElement = document.getElementById('main-video');
+        const playOverlay = document.getElementById('play-overlay');
+        const statusText = document.getElementById('status-text');
+        const chatMessages = document.getElementById('chat-messages');
+        const chatInput = document.getElementById('chat-input');
+        const btnMic = document.getElementById('btn-mic');
+        const mainUiContainer = document.getElementById('main-ui-container');
+
+        // --- AYARLAR VE SES KARIŞTIRICI ---
+        const settingsModal = document.getElementById('settings-modal');
+        let selectedMicId = 'default';
+        let selectedSpeakerId = 'default';
+
+        document.getElementById('btn-settings').addEventListener('click', () => settingsModal.classList.add('active'));
+        document.getElementById('btn-open-login-settings').addEventListener('click', () => settingsModal.classList.add('active'));
+        document.getElementById('btn-close-settings').addEventListener('click', () => settingsModal.classList.remove('active'));
+
+        // Avatar Seçimi
+        document.querySelectorAll('.avatar-option').forEach(el => {
+            el.addEventListener('click', () => {
+                document.querySelectorAll('.avatar-option').forEach(a => a.classList.remove('selected'));
+                el.classList.add('selected');
+                myAvatar = el.innerText;
+            });
+        });
+
+        // Ses Karıştırıcı (Audio Mixer)
+        document.getElementById('mix-video-vol').addEventListener('input', (e) => {
+            videoElement.volume = e.target.value / 100;
+        });
+        document.getElementById('mix-chat-vol').addEventListener('input', (e) => {
+            const vol = e.target.value / 100;
+            activeAudioElements.forEach(audio => { audio.volume = vol; });
+        });
+
+        // Cihaz Seçimi (Mikrofon/Hoparlör)
+        document.getElementById('btn-refresh-devices').addEventListener('click', async () => {
+            try {
+                await navigator.mediaDevices.getUserMedia({audio: true}); // İzin iste
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const micSelect = document.getElementById('mic-select');
+                const speakerSelect = document.getElementById('speaker-select');
+                micSelect.innerHTML = '<option value="default">Varsayılan Mikrofon</option>';
+                speakerSelect.innerHTML = '<option value="default">Varsayılan Hoparlör</option>';
+                
+                devices.forEach(d => {
+                    if(d.kind === 'audioinput' && d.deviceId !== 'default') {
+                        micSelect.innerHTML += `<option value="${d.deviceId}">${d.label || 'Mikrofon '}</option>`;
+                    }
+                    if(d.kind === 'audiooutput' && d.deviceId !== 'default') {
+                        speakerSelect.innerHTML += `<option value="${d.deviceId}">${d.label || 'Hoparlör '}</option>`;
+                    }
+                });
+                showToast("Cihaz listesi güncellendi", "success");
+            } catch(e) { showToast("Cihazlara erişim reddedildi!", "error"); }
+        });
+
+        document.getElementById('mic-select').addEventListener('change', (e) => selectedMicId = e.target.value);
+        document.getElementById('speaker-select').addEventListener('change', (e) => {
+            selectedSpeakerId = e.target.value;
+            // Tüm aktif sesleri yeni hoparlöre yönlendir
+            if (typeof videoElement.setSinkId !== 'undefined') {
+                videoElement.setSinkId(selectedSpeakerId).catch(()=>{});
+                activeAudioElements.forEach(a => a.setSinkId(selectedSpeakerId).catch(()=>{}));
+            }
+        });
+
+        // --- YENİ EKRAN MODLARI (Tiyatro & PiP) ---
+        let isTheaterMode = false;
+        document.getElementById('btn-theater').addEventListener('click', () => {
+            isTheaterMode = !isTheaterMode;
+            if(isTheaterMode) {
+                mainUiContainer.classList.add('theater-mode');
+                showToast("Tiyatro Modu Açıldı (Sohbet Gizlendi)", "info");
+            } else {
+                mainUiContainer.classList.remove('theater-mode');
+            }
+        });
+
+        document.getElementById('btn-pip').addEventListener('click', async () => {
+            try {
+                if (document.pictureInPictureElement) await document.exitPictureInPicture();
+                else await videoElement.requestPictureInPicture();
+            } catch (err) { showToast("Tarayıcınız PiP modunu desteklemiyor.", "error"); }
+        });
+
+        let isCinemaMode = false;
+        document.getElementById('btn-cinema').addEventListener('click', toggleCinemaMode);
+        document.getElementById('btn-cinema-exit').addEventListener('click', toggleCinemaMode);
+
+        function toggleCinemaMode() {
+            isCinemaMode = !isCinemaMode;
+            if (isCinemaMode) {
+                document.body.classList.add('cinema-mode');
+                showToast("Sinema Modu Aktif", "info");
+            } else document.body.classList.remove('cinema-mode');
+        }
+
+        // --- YARDIMCI FONKSİYONLAR ---
+        function switchScreen(room, role) {
+            document.getElementById('room-display').innerText = room;
+            document.getElementById('role-display').innerText = role;
+            document.getElementById('login-screen').classList.remove('active');
+            document.getElementById('video-screen').classList.add('active');
+            chatMessages.innerHTML = ''; 
+            addChatMessage("Sistem", "💻", "Odaya katıldınız. İyi seyirler!", false);
+        }
+
+        function addChatMessage(sender, avatar, text, isMe) {
+            const div = document.createElement('div');
+            div.className = `message ${isMe ? 'me' : ''}`;
+            div.innerHTML = `
+                <div class="sender-info"><span class="msg-avatar">${avatar}</span> ${sender}</div>
+                <div class="msg-text">${text}</div>
+            `;
+            chatMessages.appendChild(div);
+            chatMessages.scrollTop = chatMessages.scrollHeight; 
+        }
+
+        function handleDisconnect() {
+            if (myStream) myStream.getTracks().forEach(t => t.stop());
+            if (micStream) micStream.getTracks().forEach(t => t.stop());
+            if (peer) peer.destroy();
+            viewers.clear();
+            activeVoiceCalls.clear();
+            activeAudioElements.forEach(a => a.remove());
+            activeAudioElements = [];
+            videoElement.srcObject = null;
+            
+            document.getElementById('video-screen').classList.remove('active');
+            document.getElementById('login-screen').classList.add('active');
+            document.body.classList.remove('cinema-mode');
+            mainUiContainer.classList.remove('theater-mode');
+            
+            btnMic.classList.remove('active');
+            btnMic.innerHTML = "🎤 Mikrofon";
+        }
+
+        document.getElementById('leave-btn').addEventListener('click', () => {
+            if (confirm("Odadan ayrılmak istediğinize emin misiniz?")) handleDisconnect();
+        });
+
+        // --- SESLİ SOHBET (VOICE CHAT) ---
+        btnMic.addEventListener('click', async () => {
+            if (micStream) {
+                micStream.getTracks().forEach(t => t.stop());
+                micStream = null;
+                btnMic.classList.remove('active');
+                btnMic.innerHTML = "🎤 Mikrofon";
+                activeVoiceCalls.forEach(call => call.close());
+                activeVoiceCalls.clear();
+                showToast("Mikrofon kapatıldı", "info");
+            } else {
+                try {
+                    const constraints = { audio: selectedMicId !== 'default' ? { deviceId: { exact: selectedMicId } } : true };
+                    micStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    btnMic.classList.add('active');
+                    btnMic.innerHTML = "🛑 Mikrofon Açık";
+                    showToast("Sese bağlanıldı!", "success");
+                    
+                    if (isHost) {
+                        viewers.forEach((v, peerId) => {
+                            const call = peer.call(peerId, micStream, { metadata: { type: 'voice' } });
+                            activeVoiceCalls.set(peerId, call);
+                        });
+                    } else {
+                        const call = peer.call(hostId, micStream, { metadata: { type: 'voice' } });
+                        activeVoiceCalls.set(hostId, call);
+                    }
+                } catch (e) { showToast("Mikrofon erişimi sağlanamadı!", "error"); }
+            }
+        });
+
+        function handleIncomingVoice(call) {
+            call.answer();
+            call.on('stream', audioStream => {
+                const audio = document.createElement('audio');
+                audio.srcObject = audioStream;
+                audio.autoplay = true;
+                // Ayarlardaki hoparlöre ve sese yönlendir
+                if(typeof audio.setSinkId !== 'undefined' && selectedSpeakerId !== 'default') audio.setSinkId(selectedSpeakerId).catch(()=>{});
+                audio.volume = document.getElementById('mix-chat-vol').value / 100;
+                
+                document.body.appendChild(audio);
+                activeAudioElements.push(audio);
+                
+                call.on('close', () => {
+                    audio.remove();
+                    activeAudioElements = activeAudioElements.filter(a => a !== audio);
+                });
+            });
+        }
+
+        // --- YAYINCI (HOST) MANTIĞI ---
+        document.getElementById('btn-host').addEventListener('click', async () => {
+            roomCode = document.getElementById('room-input').value.trim();
+            myUsername = document.getElementById('username-input').value.trim() || "Yayıncı";
+            if(!roomCode) return showToast("Lütfen Oda Kodu girin!", "error");
+
+            try {
+                myStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: "never" }, audio: true });
+                videoElement.srcObject = myStream;
+                videoElement.muted = true; 
+                
+                isHost = true;
+                hostId = 'bizim-wp-host-' + roomCode;
+                document.getElementById('admin-panel').style.display = 'block'; 
+
+                peer = new Peer(hostId);
+                
+                peer.on('open', () => {
+                    statusText.innerText = "Yayın Aktif!";
+                    switchScreen(roomCode, "Yayıncı");
+                    showToast("Oda başarıyla kuruldu.", "success");
+                });
+
+                peer.on('call', call => {
+                    if (call.metadata?.type === 'voice') handleIncomingVoice(call);
+                });
+
+                peer.on('connection', conn => {
+                    conn.on('open', () => {
+                        const uname = conn.metadata?.username || "Anonim";
+                        const uavatar = conn.metadata?.avatar || "👤";
+                        viewers.set(conn.peer, { conn: conn, username: uname, avatar: uavatar });
+                        updateAdminPanel();
+                        showToast(`${uname} odaya katıldı!`, "success");
+
+                        if (myStream) peer.call(conn.peer, myStream, { metadata: { type: 'screen' } });
+                        if (micStream) {
+                            const voiceCall = peer.call(conn.peer, micStream, { metadata: { type: 'voice' } });
+                            activeVoiceCalls.set(conn.peer, voiceCall);
+                        }
+                    });
+
+                    conn.on('data', data => {
+                        if (data.type === 'CHAT') {
+                            addChatMessage(data.sender, data.avatar, data.text, false);
+                            viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); });
+                        }
+                    });
+
+                    conn.on('close', () => { 
+                        const vData = viewers.get(conn.peer);
+                        if(vData) showToast(`${vData.username} odadan ayrıldı.`, "info");
+                        viewers.delete(conn.peer); updateAdminPanel(); 
+                    });
+                });
+
+                myStream.getVideoTracks()[0].onended = () => {
+                    showToast("Ekran paylaşımı durduruldu.", "error");
+                    handleDisconnect();
+                };
+            } catch (err) { showToast("Ekran paylaşımı iptal edildi.", "error"); }
+        });
+
+        // --- İZLEYİCİ (VIEWER) MANTIĞI ---
+        document.getElementById('btn-viewer').addEventListener('click', () => {
+            roomCode = document.getElementById('room-input').value.trim();
+            myUsername = document.getElementById('username-input').value.trim() || "İzleyici";
+            if(!roomCode) return showToast("Lütfen Oda Kodu girin!", "error");
+
+            isHost = false;
+            hostId = 'bizim-wp-host-' + roomCode;
+            document.getElementById('admin-panel').style.display = 'none';
+
+            peer = new Peer(); 
+            peer.on('open', () => {
+                statusText.innerText = "Yayıncı aranıyor...";
+                switchScreen(roomCode, "İzleyici");
+
+                hostConnection = peer.connect(hostId, { metadata: { username: myUsername, avatar: myAvatar } });
+                
+                hostConnection.on('open', () => {
+                    statusText.innerText = "Görüntü bekleniyor...";
+                    showToast("Yayıncıya bağlanıldı!", "success");
+                });
+
+                hostConnection.on('data', data => {
+                    if (data.type === 'CHAT') addChatMessage(data.sender, data.avatar, data.text, false);
+                    else if (data.type === 'CLEAR_CHAT') { chatMessages.innerHTML = ''; showToast("Sohbet yönetici tarafından temizlendi.", "info"); }
+                    else if (data.type === 'KICK') {
+                        showToast("Yayıncı tarafından odadan atıldınız!", "error");
+                        setTimeout(handleDisconnect, 1000);
+                    }
+                });
+
+                peer.on('call', call => {
+                    if (call.metadata?.type === 'screen') {
+                        call.answer(); 
+                        call.on('stream', remoteStream => {
+                            videoElement.srcObject = remoteStream;
+                            statusText.innerText = "Bağlı";
+                            videoElement.onloadedmetadata = () => {
+                                videoElement.play().catch(() => playOverlay.style.display = 'flex');
+                            };
+                        });
+                    } 
+                    else if (call.metadata?.type === 'voice') {
+                        handleIncomingVoice(call);
+                    }
+                });
+
+                peer.on('error', err => {
+                    if (err.type === 'peer-unavailable') {
+                        showToast("Yayıncı henüz odayı kurmamış veya kod yanlış!", "error");
+                        setTimeout(handleDisconnect, 2000);
+                    }
+                });
+            });
+        });
+
+        document.getElementById('force-play-btn').addEventListener('click', () => {
+            playOverlay.style.display = 'none';
+            videoElement.play();
+        });
+
+        // --- SOHBET GÖNDERME ---
+        function sendMessage() {
+            const text = chatInput.value.trim();
+            if(!text) return;
+            const msgData = { type: 'CHAT', sender: myUsername, avatar: myAvatar, text: text };
+            
+            if(isHost) {
+                viewers.forEach(v => v.conn.send(msgData));
+                addChatMessage(myUsername, myAvatar, text, true);
+            } else {
+                if(hostConnection && hostConnection.open) {
+                    hostConnection.send(msgData);
+                    addChatMessage(myUsername, myAvatar, text, true);
+                } else {
+                    showToast("Mesaj gönderilemedi, bağlantı yok.", "error");
+                }
+            }
+            chatInput.value = '';
+        }
+
+        document.getElementById('chat-send-btn').addEventListener('click', sendMessage);
+        document.getElementById('chat-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') sendMessage(); });
+
+        // --- ADMİN KONTROLLERİ (Sadece Host) ---
+        function updateAdminPanel() {
+            const list = document.getElementById('admin-user-list');
+            list.innerHTML = '';
+            viewers.forEach((v, peerId) => {
+                const li = document.createElement('li');
+                li.className = 'admin-user-item';
+                li.innerHTML = `<span>${v.avatar} ${v.username}</span> <button class="kick-btn" onclick="kickUser('${peerId}')">At</button>`;
+                list.appendChild(li);
+            });
+        }
+
+        window.kickUser = function(peerId) {
+            const target = viewers.get(peerId);
+            if(target && confirm(`${target.username} adlı kullanıcıyı atmak istiyor musun?`)) {
+                target.conn.send({ type: 'KICK' }); 
+                setTimeout(() => target.conn.close(), 500); 
+            }
+        };
+
+        document.getElementById('btn-clear-chat').addEventListener('click', () => {
+            if(confirm("Tüm sohbeti herkes için silmek istiyor musun?")) {
+                chatMessages.innerHTML = '';
+                viewers.forEach(v => v.conn.send({ type: 'CLEAR_CHAT' }));
+                showToast("Sohbet temizlendi.", "info");
+            }
+        });
+    </script>
+</body>
+</html>
