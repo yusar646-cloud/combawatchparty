@@ -20,7 +20,7 @@
         .toast.error { border-left-color: #f44336; }
         .toast.info { border-left-color: #2196F3; }
         
-        /* Ayarlar Modalı */
+        /* Modallar */
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 99999; padding: 20px; }
         .modal-overlay.active { display: flex; }
         .modal { background: var(--card-bg); padding: 25px; border-radius: 12px; width: 100%; max-width: 420px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); max-height: 90vh; overflow-y: auto; }
@@ -80,7 +80,7 @@
         .floating-emoji { position: absolute; bottom: 50px; font-size: 2rem; opacity: 1; animation: floatUp 2.5s ease-out forwards; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
         @keyframes floatUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 50% { transform: translateY(-150px) scale(1.5) translateX(20px); opacity: 0.8; } 100% { transform: translateY(-300px) scale(1); opacity: 0; } }
 
-        /* YENİ: EFEKTLER (JUMPSCARE & KUTLAMA) */
+        /* EFEKTLER (JUMPSCARE & KUTLAMA) */
         @keyframes scare {
             0% { filter: invert(1) hue-rotate(180deg); transform: translate(15px, -15px); }
             10% { filter: invert(0); transform: translate(-15px, 15px); }
@@ -173,6 +173,18 @@
 
     <div id="toast-container"></div>
 
+    <div class="modal-overlay" id="debug-modal">
+        <div class="modal" style="border-left: 4px solid #f44336;">
+            <h2 style="color: #f44336; font-size: 1.3rem;">⚠️ Ekran Paylaşım Hatası</h2>
+            <p style="font-size: 0.9rem; color: #ccc; margin-bottom: 15px;">Sistem ekranı paylaşırken bir engelle karşılaştı. Lütfen aşağıdaki kodu kopyalayıp bana (yapay zekaya) gönderin.</p>
+            <div style="background: #111; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 0.85rem; color: #ffeb3b; word-wrap: break-word; max-height: 150px; overflow-y: auto;" id="debug-error-text">
+                Hata detayı bekleniyor...
+            </div>
+            <button class="modal-close" id="btn-copy-error" style="background: #2196F3; margin-top: 15px;">📋 Kodu Kopyala</button>
+            <button class="modal-close" id="btn-close-debug" style="background: #444; margin-top: 8px;">Kapat</button>
+        </div>
+    </div>
+
     <div id="wrapped-overlay">
         <div class="w-slide">
             <div class="w-title">Gecenin Özeti 🍿</div>
@@ -254,7 +266,8 @@
             <button id="btn-open-login-settings" class="ctrl-btn settings" style="justify-content:center;">⚙️ Profilini Ayarla</button>
             <div class="btn-group">
                 <button id="btn-host">Yayıncı Ol</button>
-                <button id="btn-mobile-share">📱 Ekran Paylaş</button> <button id="btn-viewer">İzleyici Ol</button>
+                <button id="btn-mobile-share">📱 Ekran Paylaş</button>
+                <button id="btn-viewer">İzleyici Ol</button>
             </div>
         </div>
     </div>
@@ -403,6 +416,20 @@
         document.getElementById('btn-logout').addEventListener('click', () => {
             signOut(auth);
             document.getElementById('settings-modal').classList.remove('active');
+        });
+
+        // HATA KOPYALAMA İŞLEMİ
+        document.getElementById('btn-copy-error').addEventListener('click', () => {
+            const errText = document.getElementById('debug-error-text').innerText;
+            navigator.clipboard.writeText(errText).then(() => {
+                showToast("Hata kodu panoya kopyalandı! Bana yapıştır.", "success");
+            }).catch(() => {
+                showToast("Otomatik kopyalanamadı, lütfen metni seçip kopyalayın.", "error");
+            });
+        });
+        
+        document.getElementById('btn-close-debug').addEventListener('click', () => {
+            document.getElementById('debug-modal').classList.remove('active');
         });
 
         // --- GÖRSEL EFEKTLER (JUMPSCARE & KUTLAMA) ---
@@ -678,7 +705,7 @@
             }
         });
 
-        // --- ORTAK VERİ İŞLEYİCİ (MESAFLAR, EFEKTLER, TRANSFER) ---
+        // --- ORTAK VERİ İŞLEYİCİ ---
         function handleIncomingData(data, conn = null) {
             if (data.type === 'CHAT') {
                 addChatMessage(data.sender, data.avatar, data.text, false);
@@ -695,13 +722,12 @@
                 window.triggerEffect(data.effect);
                 if (isHost && conn) viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); });
             }
-            else if (data.type === 'HOST_TRANSFER') { // Yayıncı Transfer Sinyali
+            else if (data.type === 'HOST_TRANSFER') { 
                 if (peer.id === data.newHostId) { window.becomeHost(); } 
                 else { window.connectToNewHost(data.newHostId); }
             }
         }
 
-        // --- WEB-RTC PEER DİNLEYİCİLERİ ---
         function setupPeerListeners() {
             peer.on('call', call => {
                 if (call.metadata?.type === 'screen') {
@@ -715,7 +741,7 @@
 
             peer.on('connection', conn => {
                 conn.on('open', () => {
-                    if (!isHost) return; // Sadece Host izleyici kabul edebilir
+                    if (!isHost) return; 
                     const uname = conn.metadata?.username || "Anonim", uavatar = conn.metadata?.avatar || "👤";
                     viewers.set(conn.peer, { conn: conn, username: uname, avatar: uavatar });
                     updateAdminPanel();
@@ -734,29 +760,29 @@
             });
         }
 
-        // --- YAYIN BAŞLATMA VE MOBİL EKRAN PAYLAŞIMI ---
+        // --- YAYIN BAŞLATMA (HATA AYIKLAMA MODU EKLENDİ) ---
         const startHostingProcess = async () => {
             roomCode = document.getElementById('room-input').value.trim();
             myUsername = document.getElementById('username-input').value.trim() || "Yayıncı";
             if(!roomCode) return showToast("Lütfen Oda Kodu girin!", "error");
 
             try {
-                // Mobil dahil her cihazda doğrudan ekran ve ses izni istenir (Gesture blocking kaldırıldı)
-                myStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-            } catch (err) {
-                try {
-                    // Eğer ses izninden dolayı hata verdiyse sadece ekran (mobilde yaygındır)
-                    myStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-                    showToast("Sistem sesi aktarılamıyor, sessiz yayın başladı.", "info");
-                } catch (camErr) {
-                    // Cihaz kesinlikle ekran paylaşımı desteklemiyorsa yayını kurtarmak için Arka Kamera (Fallback) aç
-                    try {
-                        myStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: true });
-                        showToast("Cihaz ekran paylaşımını desteklemiyor, arka kamera açıldı.", "info");
-                    } catch(finalErr) {
-                        return showToast("Kamera/Ekran izni reddedildi!", "error");
-                    }
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+                    throw new Error("Tarayıcınız getDisplayMedia API'sini desteklemiyor. (iOS kısıtlaması veya Güvenli Olmayan HTTP Bağlantısı)");
                 }
+                
+                const isMobile = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent);
+                // Ekran isteğinde bulun
+                myStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: !isMobile });
+                
+            } catch (err) {
+                // HATA AYIKLAMA (DEBUG) MODALI
+                const isSecure = window.isSecureContext ? "Evet (Güvenli)" : "Hayır (HTTPS Gerekli!)";
+                const errDetails = `Hata Adı: ${err.name}\nHata Mesajı: ${err.message}\nHTTPS Aktif mi?: ${isSecure}\nTarayıcı: ${navigator.userAgent}`;
+                
+                document.getElementById('debug-error-text').innerText = errDetails;
+                document.getElementById('debug-modal').classList.add('active');
+                return; // Devam etme, yayını kes ki hatayı görebilelim.
             }
 
             videoElement.srcObject = myStream; videoElement.muted = true; 
@@ -819,7 +845,6 @@
             const text = chatInput.value.trim();
             if(!text) return;
 
-            // Slash Komutları
             if (text.startsWith('/')) {
                 if (!isHost) { showToast("Bu komutları sadece oda kurucusu kullanabilir!", "error"); chatInput.value = ''; return; }
 
@@ -859,7 +884,7 @@
         document.getElementById('chat-send-btn').addEventListener('click', sendMessage);
         document.getElementById('chat-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') sendMessage(); });
 
-        // --- HOST TRANSFER (YAYINCI DEĞİŞTİRME) SİSTEMİ ---
+        // --- HOST TRANSFER ---
         window.becomeHost = async function() {
             isHost = true; document.getElementById('admin-panel').style.display = 'block';
             if (hostConnection) hostConnection.close();
@@ -878,14 +903,11 @@
         window.transferHost = function(targetPeerId) {
             const t = viewers.get(targetPeerId);
             if(t && confirm(`${t.username} adlı kullanıcıyı yeni Yayıncı yapmak istiyor musunuz?`)) {
-                // Firebase'i Yeni Host ID ile Güncelle
                 set(ref(database, 'rooms/' + roomCode), {
                     hostId: targetPeerId, hostName: t.username, createdAt: serverTimestamp()
                 }).then(() => {
-                    // Herkese transfer sinyali gönder
                     viewers.forEach(v => v.conn.send({ type: 'HOST_TRANSFER', newHostId: targetPeerId }));
                     
-                    // Kendi yetkilerimi alıp izleyici moduna geçiyorum
                     isHost = false; document.getElementById('admin-panel').style.display = 'none';
                     if (myStream) myStream.getTracks().forEach(track => track.stop()); myStream = null;
                     viewers.clear();
