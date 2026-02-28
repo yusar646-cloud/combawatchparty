@@ -374,8 +374,9 @@
                 <select id="voice-effect-select">
                     <option value="none">Normal Ses</option>
                     <option value="robot">🤖 Robot Sesi</option>
-                    <option value="echo">⛰️ Mağara (Yankı)</option>
-                    <option value="radio">📻 Eski Radyo</option>
+                    <option value="vader">🌌 Derin Ses (Vader)</option>
+                    <option value="alien">👽 Uzaylı (Titreşimli)</option>
+                    <option value="megaphone">📢 Megafon / Telsiz</option>
                 </select>
                 <p style="font-size: 0.75rem; color: #aaa; margin-top: 5px;">* Değişikliğin aktif olması için mikrofonu kapatıp tekrar açın.</p>
             </div>
@@ -598,12 +599,14 @@
         let isAdmin = false, myUid = "anon_" + Date.now();
         let globalMicEnabled = false; 
 
-        // EKSİK TANIMLAMALAR EKLENDİ (Katı mod çökmesini engellemek için)
+        // Tanimlamalar
         let otherPeers = [];
         let localAnalyser = null;
         let zenTimer = null;
+        
+        // Ses İşleyici Global Değişken (Bağlantı esnasında efekti sabit tutar)
+        let currentProcessedStream = null;
 
-        // EKSİK FONKSİYON EKLENDİ (UI Otomatik Gizleyici)
         function wakeUpZen() {
             document.body.classList.remove('zen-mode');
             clearTimeout(zenTimer);
@@ -611,7 +614,7 @@
                 if (document.getElementById('video-screen').classList.contains('active') && !isTheaterMode) {
                     document.body.classList.add('zen-mode');
                 }
-            }, 6000); // 6 saniye hareketsizlikte Zen modu aktif olur
+            }, 6000); 
         }
         window.addEventListener('mousemove', wakeUpZen);
         window.addEventListener('touchstart', wakeUpZen);
@@ -639,7 +642,7 @@
 
         const activeSpeakers = new Map();
 
-        // --- SES DEĞİŞTİRİCİ (VOICE CHANGER) MANTIĞI ---
+        // --- SES DEĞİŞTİRİCİ (VOICE CHANGER) YENİLENMİŞ MOTOR ---
         let currentVoiceEffect = 'none';
         let audioCtxProcessing = null;
 
@@ -659,41 +662,47 @@
         function applyVoiceEffect(rawStream) {
             if (isMobile || currentVoiceEffect === 'none') return rawStream;
 
-            if (!audioCtxProcessing) {
-                audioCtxProcessing = new (window.AudioContext || window.webkitAudioContext)();
+            // Eski context'i temizle, yankı döngüsünü engelle
+            if (audioCtxProcessing) {
+                audioCtxProcessing.close();
             }
-            if (audioCtxProcessing.state === 'suspended') audioCtxProcessing.resume();
-
+            audioCtxProcessing = new (window.AudioContext || window.webkitAudioContext)();
+            
             const source = audioCtxProcessing.createMediaStreamSource(rawStream);
             const dest = audioCtxProcessing.createMediaStreamDestination();
 
             if (currentVoiceEffect === 'robot') {
+                const osc = audioCtxProcessing.createOscillator();
+                osc.type = 'sawtooth'; osc.frequency.value = 50;
+                const gain = audioCtxProcessing.createGain();
+                osc.connect(gain.gain); 
+                source.connect(gain);
+                gain.connect(dest);
+                osc.start();
+            } else if (currentVoiceEffect === 'vader') {
+                const lp = audioCtxProcessing.createBiquadFilter();
+                lp.type = 'lowpass'; lp.frequency.value = 400;
                 const distortion = audioCtxProcessing.createWaveShaper();
                 distortion.curve = makeDistortionCurve(50);
-                const biquad = audioCtxProcessing.createBiquadFilter();
-                biquad.type = "bandpass";
-                biquad.frequency.value = 1000;
-                source.connect(distortion);
-                distortion.connect(biquad);
-                biquad.connect(dest);
-            } else if (currentVoiceEffect === 'echo') {
-                const delay = audioCtxProcessing.createDelay();
-                delay.delayTime.value = 0.4;
-                const feedback = audioCtxProcessing.createGain();
-                feedback.gain.value = 0.5;
-                source.connect(delay);
-                delay.connect(feedback);
-                feedback.connect(delay);
-                source.connect(dest);
-                delay.connect(dest);
-            } else if (currentVoiceEffect === 'radio') {
+                source.connect(lp);
+                lp.connect(distortion);
+                distortion.connect(dest);
+            } else if (currentVoiceEffect === 'alien') {
+                const osc = audioCtxProcessing.createOscillator();
+                osc.type = 'sine'; osc.frequency.value = 6; 
+                const gain = audioCtxProcessing.createGain();
+                osc.connect(gain.gain);
+                source.connect(gain);
+                gain.connect(dest);
+                osc.start();
+            } else if (currentVoiceEffect === 'megaphone') {
                 const hp = audioCtxProcessing.createBiquadFilter();
-                hp.type = 'highpass'; hp.frequency.value = 1200;
+                hp.type = 'highpass'; hp.frequency.value = 1000;
                 const lp = audioCtxProcessing.createBiquadFilter();
-                lp.type = 'lowpass'; lp.frequency.value = 3200;
-                const distortion = audioCtxProcessing.createWaveShaper();
-                distortion.curve = makeDistortionCurve(20);
-                source.connect(hp); hp.connect(lp); lp.connect(distortion); distortion.connect(dest);
+                lp.type = 'lowpass'; lp.frequency.value = 3000;
+                const dist = audioCtxProcessing.createWaveShaper();
+                dist.curve = makeDistortionCurve(30);
+                source.connect(hp); hp.connect(lp); lp.connect(dist); dist.connect(dest);
             }
 
             return dest.stream;
@@ -1433,6 +1442,10 @@
             
             globalMicEnabled = false; 
 
+            // Ses motorunu sıfırla
+            if (audioCtxProcessing) { audioCtxProcessing.close(); audioCtxProcessing = null; }
+            currentProcessedStream = null;
+
             document.getElementById('voice-avatars-container').innerHTML = ''; activeSpeakers.clear();
             document.querySelectorAll('.face-cam-bubble').forEach(e => e.remove()); window.toggleLobbyMusic(false);
             Composite.clear(physicsEngine.world); Composite.add(physicsEngine.world, physicsWalls); 
@@ -1497,21 +1510,26 @@
                 btnMic.classList.remove('active'); btnMic.innerHTML = "🎤<span class='hide-on-mobile'> Mikrofon</span>"; btnMic.style.background = "#444";
                 activeVoiceCalls.forEach(call => call.close()); activeVoiceCalls.clear(); pttBtnMobile.style.display = 'none';
                 removeVoiceAvatar('local'); localAnalyser = null; 
+                
+                if (audioCtxProcessing) { audioCtxProcessing.close(); audioCtxProcessing = null; }
+                currentProcessedStream = null;
+
                 globalMicEnabled = false; 
                 showToast("Mikrofon kapatıldı.", "info");
             } else {
                 try {
+                    // Cihazın kendi AEC'sini engellememek için sampleRate kısıtlamasını kaldırdık
                     const constraints = { 
                         audio: selectedMicId !== 'default' 
-                               ? { deviceId: { exact: selectedMicId }, echoCancellation: true, noiseSuppression: true, autoGainControl: true, sampleRate: 44100 } 
-                               : { echoCancellation: true, noiseSuppression: true, autoGainControl: true, sampleRate: 44100 } 
+                               ? { deviceId: { exact: selectedMicId }, echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+                               : { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
                     };
                     micStream = await navigator.mediaDevices.getUserMedia(constraints);
                     
                     if(isPttMode) { micStream.getAudioTracks().forEach(t => t.enabled = false); btnMic.innerHTML = "🛑<span class='hide-on-mobile'> Bekliyor</span>"; btnMic.style.background = "#e50914"; pttBtnMobile.style.display = 'flex'; } 
                     else { btnMic.classList.add('active'); btnMic.innerHTML = "🎤<span class='hide-on-mobile'> Açık</span>"; btnMic.style.background = ""; }
                     
-                    let streamToSend = applyVoiceEffect(micStream);
+                    currentProcessedStream = applyVoiceEffect(micStream);
 
                     if (!isMobile) {
                         if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -1527,8 +1545,24 @@
                     globalMicEnabled = true; 
 
                     const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid };
-                    if (isHost) { viewers.forEach((v, pId) => { const call = peer.call(pId, streamToSend, { metadata: voiceMeta }); activeVoiceCalls.set(pId, call); }); } 
-                    else { const call = peer.call(hostId, streamToSend, { metadata: voiceMeta }); activeVoiceCalls.set(hostId, call); }
+                    
+                    if (isHost) { 
+                        viewers.forEach((v, pId) => { 
+                            const call = peer.call(pId, currentProcessedStream, { metadata: voiceMeta }); 
+                            activeVoiceCalls.set(pId, call); 
+                        }); 
+                    } 
+                    else { 
+                        // YAYINCIYA BAĞLAN
+                        const callHost = peer.call(hostId, currentProcessedStream, { metadata: voiceMeta }); 
+                        activeVoiceCalls.set(hostId, callHost); 
+                        
+                        // DİĞER İZLEYİCİLERE (FULL MESH P2P BAĞLANTI) BAĞLAN - YANKIYI ÖNLER
+                        otherPeers.forEach(pId => {
+                            const callPeer = peer.call(pId, currentProcessedStream, { metadata: voiceMeta });
+                            activeVoiceCalls.set(pId, callPeer);
+                        });
+                    }
                 } catch (e) { showToast("Mikrofon erişimi reddedildi!", "error"); }
             }
         });
@@ -1557,7 +1591,27 @@
             else if (data.type === 'ADMIN_MSG') { window.showAdminAnnouncement(data.text); }
             else if (data.type === 'THEME') { window.applyTheme(data.theme); } 
             else if (data.type === 'LOBBY_MUSIC') { window.toggleLobbyMusic(data.state); }
-            else if (data.type === 'PEER_LIST') { otherPeers = data.peers; }
+            else if (data.type === 'PEER_LIST') { 
+                const newPeers = data.peers.filter(p => !otherPeers.includes(p));
+                otherPeers = data.peers; 
+                
+                // Odaya yeni giren kişilere var olan kameraları yolla
+                if (faceCamStream && !isHost) {
+                    const camMeta = { type: 'facecam', username: myUsername, uid: myUid };
+                    newPeers.forEach(pId => { myFaceCamCalls.push(peer.call(pId, faceCamStream, { metadata: camMeta })); });
+                }
+
+                // Odaya yeni giren kişilere var olan mikrofonu (varsa efektif sesi) yolla
+                if (globalMicEnabled && currentProcessedStream && !isHost) {
+                    const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid };
+                    newPeers.forEach(pId => {
+                        if (!activeVoiceCalls.has(pId)) {
+                            const c = peer.call(pId, currentProcessedStream, { metadata: voiceMeta });
+                            activeVoiceCalls.set(pId, c);
+                        }
+                    });
+                }
+            }
             else if (data.type === 'FACECAM_OFF') { document.getElementById('facecam-'+data.peerId)?.remove(); if (isHost) viewers.forEach(v => { if(v.conn.peer !== conn.peer) v.conn.send(data); }); }
             else if (data.type === 'EFFECT') { window.triggerEffect(data.effect); if (isHost && conn) viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); }); }
             else if (data.type === 'HOST_TRANSFER') { if (peer.id === data.newHostId) { window.becomeHost('sync'); } else { window.connectToNewHost(data.newHostId); } }
@@ -1591,10 +1645,9 @@
                     }
 
                     if (myStream) peer.call(conn.peer, myStream, { metadata: { type: 'screen' } });
-                    if (micStream) { 
-                        let streamToSend = applyVoiceEffect(micStream);
+                    if (globalMicEnabled && currentProcessedStream) { 
                         const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid }; 
-                        const vCall = peer.call(conn.peer, streamToSend, { metadata: voiceMeta }); 
+                        const vCall = peer.call(conn.peer, currentProcessedStream, { metadata: voiceMeta }); 
                         activeVoiceCalls.set(conn.peer, vCall); 
                     }
                     if (faceCamStream) { myFaceCamCalls.push(peer.call(conn.peer, faceCamStream, { metadata: { type: 'facecam', username: myUsername, uid: myUid } })); }
@@ -1653,10 +1706,9 @@
             hostConnection.on('open', () => { statusText.innerText = "Görüntü bekleniyor..."; showToast("Yayıncıya bağlanıldı!", "success"); });
             hostConnection.on('data', handleIncomingData);
             
-            if (micStream) { 
-                let streamToSend = applyVoiceEffect(micStream);
+            if (globalMicEnabled && currentProcessedStream) { 
                 const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid }; 
-                activeVoiceCalls.set(targetHostId, peer.call(targetHostId, streamToSend, { metadata: voiceMeta })); 
+                activeVoiceCalls.set(targetHostId, peer.call(targetHostId, currentProcessedStream, { metadata: voiceMeta })); 
             }
             if (faceCamStream) { const camMeta = { type: 'facecam', username: myUsername, uid: myUid }; myFaceCamCalls.push(peer.call(targetHostId, faceCamStream, { metadata: camMeta })); }
         };
