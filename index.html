@@ -386,6 +386,7 @@
                 </label>
             </div>
 
+            <!-- GÜNCELLENEN ALTYAZI ALANI -->
             <div class="setting-group">
                 <label>🔤 Sinematik Altyazı (Deneysel)</label>
                 <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:5px; color:#fff; text-transform:none;">
@@ -393,7 +394,7 @@
                     Altyazıları Göster ve Sesimi Çevir
                 </label>
                 <p style="font-size: 0.75rem; color: #aaa; margin-top: 5px; line-height: 1.3;">
-                    Bu özellik açıkken hoparlörün/sesin kapalı dahi olsa konuşanların söylediklerini ekranda yazı olarak okuyabilirsin. Aynı zamanda sen mikrofonunu açtığında da sesin altyazıya çevrilerek karşıya gönderilir.
+                    Bu özellik açıkken, hoparlörün veya mikrofonun kapalı olsa bile odadaki diğer kişilerin söylediklerini altyazı olarak okuyabilirsin (Onlarda bu ayar kapalı olsa dahi). Ayrıca sen mikrofonunu açtığında, senin sesin de metne çevrilip odaya gönderilir.
                 </p>
             </div>
 
@@ -583,19 +584,25 @@
 
         // --- MOBİL İÇİN BİP SESİNİ VE SESSİZLİĞİ ENGELLEYEN AUDIO CONTEXT AÇICI ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // Bu ekstra fonksiyon Web Speech API (Altyazı) başlarken Bip sesini ezmek için kullanılır.
+        function preventSystemBeep() {
+            if (!audioCtx) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            gain.gain.value = 0; // Ses çıkmasın, sadece odak alsın
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(0);
+            osc.stop(audioCtx.currentTime + 0.1);
+        }
+
         const unlockAudio = () => {
             if (audioCtx.state === 'suspended') {
                 audioCtx.resume();
             }
-            // Sessiz bir frekans çalarak iOS/Android sistem seslerini ve uyku modunu engelleriz
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            gain.gain.value = 0; // Ses çıkmasın
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            if (osc.start) osc.start(0);
-            if (osc.stop) osc.stop(audioCtx.currentTime + 0.1);
-            
+            preventSystemBeep();
             document.body.removeEventListener('click', unlockAudio);
             document.body.removeEventListener('touchstart', unlockAudio);
         };
@@ -864,15 +871,15 @@
             }
         }
 
-        // --- 🔤 SİNEMATİK CANLI ALTYAZI (Sistem Bip Sesini Engellemek İçin İsteğe Bağlı Yüklenecek) ---
+        // --- 🔤 SİNEMATİK CANLI ALTYAZI (Güncellenmiş Mimari: Bip Sesi Çözümü ve Arka Plan Transferi) ---
         let speechRecog = null;
         let isAiCaptionsEnabled = false;
         let activeCaptionLines = {}; 
 
-        // Sadece kullanıcı bu özelliği AÇTIĞINDA webkitSpeechRecognition oluşturulur, aksi takdirde Android durduk yere arka planda "BİP" sesi çalmaz.
+        // Altyazı motoru başlangıçta hazır edilir ama çalıştırılmaz. Sadece Mikrofon aktif olduğunda çalışır.
         function initSpeechRecog() {
             if (!('webkitSpeechRecognition' in window)) return false;
-            if (speechRecog) return true; // Zaten varsa tekrar oluşturma
+            if (speechRecog) return true; 
             
             speechRecog = new webkitSpeechRecognition();
             speechRecog.continuous = true;
@@ -891,18 +898,24 @@
                 }
                 
                 if (finalTranscript.trim()) {
-                    displayLiveCaption('local', myAvatar, myUsername, finalTranscript, true);
+                    // Mikrofonu açık olan herkes kendi metnini tüm odaya fırlatır (Böylece başkaları izleyebilir)
                     broadcastCaption(finalTranscript, true);
+                    // Eğer kullanıcının KENDİ altyazı UI butonu da açıksa, kendi ekranında da görür.
+                    if (isAiCaptionsEnabled) displayLiveCaption('local', myAvatar, myUsername, finalTranscript, true);
                 } else if (interimTranscript.trim()) {
-                    displayLiveCaption('local', myAvatar, myUsername, interimTranscript, false);
                     broadcastCaption(interimTranscript, false);
+                    if (isAiCaptionsEnabled) displayLiveCaption('local', myAvatar, myUsername, interimTranscript, false);
                 }
             };
 
             speechRecog.onend = () => {
-                // Sadece yetki açık ve özellik aktifse motoru tekrar çalıştır.
-                if (globalMicEnabled && isAiCaptionsEnabled) {
-                    try { speechRecog.start(); } catch(e){}
+                // Sadece Mikrofon yetkisi hala DEVAM EDİYORSA motor arka planda dinlemeyi sürdürür.
+                // Bu sayede özellik, cihazın ayarını bozarak sürekli biplenmesini engeller.
+                if (globalMicEnabled && speechRecog) {
+                    try { 
+                        preventSystemBeep(); // Tekrar başlarken ses gelmemesi için odak koruması
+                        speechRecog.start(); 
+                    } catch(e){}
                 }
             };
             
@@ -913,25 +926,24 @@
             };
             return true;
         }
+        
+        // Altyazı motorunu hazırlayalım
+        initSpeechRecog();
 
+        // 🟢 ARTIK BU BUTON SADECE UI GÖRÜNÜMÜNÜ AÇIP KAPATIR!
+        // 🔴 ESKİSİ GİBİ SES MOTORUNU (webkitSpeechRecognition) TETİKLEMEZ, BÖYLECE BİP SESİ YAPMAZ!
         document.getElementById('ai-caption-toggle').addEventListener('change', (e) => {
             isAiCaptionsEnabled = e.target.checked;
             if (isAiCaptionsEnabled) {
-                const supported = initSpeechRecog();
-                if (!supported) {
+                if (!('webkitSpeechRecognition' in window)) {
                     showToast("Tarayıcınız AI Altyazı desteklemiyor.", "error"); 
                     e.target.checked = false; 
                     isAiCaptionsEnabled = false;
                     return;
                 }
-                showToast("Sinematik Altyazı Açık", "success");
-                if (globalMicEnabled && speechRecog) {
-                    try { speechRecog.start(); } catch(err){}
-                }
+                showToast("Sinematik Altyazı Açık. Artık odadaki sesleri okuyabilirsiniz.", "success");
             } else {
-                if (speechRecog) {
-                    try { speechRecog.stop(); } catch(err){}
-                }
+                showToast("Sinematik Altyazı Kapatıldı.", "info");
             }
         });
 
@@ -945,7 +957,7 @@
         }
 
         function displayLiveCaption(id, avatar, username, text, isFinal) {
-            if (!isAiCaptionsEnabled) return;
+            if (!isAiCaptionsEnabled) return; // UI kapalıysa hiçbir şey çizdirme
             
             const capContainer = document.getElementById('live-captions');
             let line = activeCaptionLines[id];
@@ -1391,9 +1403,14 @@
                     showToast("Sese bağlanıldı!", "success");
 
                     globalMicEnabled = true; 
-                    // SADECE "Deneysel Altyazı" SEÇENEĞİ AÇIKSA MOTORU BAŞLAT. (Zorunlu Bip Sesi yapmasını tamamen bitirir)
-                    if(speechRecog && isAiCaptionsEnabled) {
-                        try { speechRecog.start(); } catch(e){}
+                    
+                    // 🔴 ODA İÇİN ARKA PLAN ALTYAZI SERVİSİNİ BAŞLAT
+                    // Mikrofonu açık olan kişinin konuşmaları, (Ayar onda açık olmasa bile) dinleyenlere ulaşabilmesi için arka planda çeviri yapar.
+                    if(speechRecog) {
+                        try { 
+                            preventSystemBeep(); // Sesli asistana bağlanırken cihaz BİP çalmasın diye AudioContext ile uyuşturuyoruz.
+                            speechRecog.start(); 
+                        } catch(e){}
                     }
 
                     const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar };
@@ -1414,7 +1431,10 @@
                 if (isHost && conn) viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); });
             }
             else if (data.type === 'LIVE_CAPTION') { 
-                displayLiveCaption(data.peerId, data.avatar, data.username, data.text, data.isFinal); 
+                // 🟢 Sadece altyazı UI Ayarı(isAiCaptionsEnabled) AÇIK olan kişi ekranında görebilir!
+                if (isAiCaptionsEnabled) {
+                    displayLiveCaption(data.peerId, data.avatar, data.username, data.text, data.isFinal); 
+                }
                 if (isHost && conn) viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); }); 
             }
             else if (data.type === 'CLEAR_CHAT') { chatMessages.innerHTML = ''; showToast("Sohbet temizlendi.", "info"); }
