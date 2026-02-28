@@ -5,16 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>🍿 Comba Watch Party Ultimate</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- Matter.js Ekklentisi (Fiziksel Etkileşimler İçin) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <style>
         :root { 
             --primary: #e50914; --primary-hover: #b20710; --bg-color: #0f0f0f; --card-bg: #1e1e1e; --text-color: #f1f1f1; --border-color: #333; 
-            /* Özelleştirilebilir Düzen Değişkenleri */
             --layout-dir: row;
             --chat-width: 350px;
             --video-scale: 1;
         }
         
-        /* DİNAMİK TEMALAR */
         body.theme-cyberpunk { --primary: #ff00ff; --primary-hover: #d600d6; --bg-color: #080014; --card-bg: #120024; --border-color: #00ffff; --text-color: #e0e0ff; }
         body.theme-derbi { --primary: #ffffff; --primary-hover: #e0e0e0; --bg-color: #0b1f0d; --card-bg: #123316; --border-color: #4CAF50; --text-color: #ffffff; }
         body.theme-cinema { --primary: #f5c518; --primary-hover: #d4a715; --bg-color: #000000; --card-bg: #0a0a0a; --border-color: #332900; --text-color: #eaeaea; }
@@ -75,7 +75,7 @@
         /* Ana Ekran Düzeni (PC & Özelleştirilebilir) */
         .main-container { display: flex; width: 100vw; height: 100vh; transition: 0.3s; flex-direction: var(--layout-dir); }
         .video-section { flex: 3; display: flex; flex-direction: column; background: #000; position: relative; transition: flex 0.3s; }
-        .header { background: var(--card-bg); padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); transition: background-color 0.5s; }
+        .header { background: var(--card-bg); padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); transition: background-color 0.5s, opacity 0.5s ease; }
         .header-left h2 { margin: 0; font-size: 1.1rem; color: var(--text-color); font-weight: 600; }
         .header-controls { display: flex; gap: 8px; flex-wrap: wrap; }
         
@@ -84,7 +84,7 @@
         .ctrl-btn.mic { background: #444; } .ctrl-btn.mic.active { background: var(--primary); animation: pulse 1.5s infinite; color: #000; }
         .ctrl-btn.camera { background: #8e24aa; } .ctrl-btn.camera.active { background: #e53935; animation: pulse 2s infinite; }
         .ctrl-btn.music { background: #00897b; } .ctrl-btn.music.active { background: #ffeb3b; color: #000 !important; box-shadow: 0 0 10px #ffeb3b; }
-        .ctrl-btn.layout-btn { background: #ff5722; }
+        .ctrl-btn.layout-btn { background: #ff5722; display: none; }
         body:not(.theme-derbi) .ctrl-btn.mic.active { color: white; }
         .ctrl-btn.speaker { background: #444; } .ctrl-btn.speaker.active { background: #ff9800; }
         .ctrl-btn.settings { background: #333; border-color: var(--border-color); } .ctrl-btn.leave { background: #2a2a2a; border: 1px solid #555; }
@@ -93,6 +93,10 @@
         .video-wrapper { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; background: #000; overflow: hidden; }
         #main-video { width: 100%; height: 100%; object-fit: contain; max-height: calc(100vh - 65px); outline: none; transform: scale(var(--video-scale)); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         
+        /* 🛠️ SÜRÜKLE & KOPAR RESIZER */
+        .layout-resizer { width: 6px; background: transparent; cursor: col-resize; z-index: 50; transition: background 0.2s, opacity 0.5s ease; }
+        .layout-resizer:hover, .layout-resizer.dragging { background: var(--primary); }
+
         /* KONUŞAN PARLAR AVATARLARI */
         #voice-avatars-container { position: absolute; top: 15px; left: 15px; display: flex; flex-wrap: wrap; gap: 12px; z-index: 90; pointer-events: none; }
         .v-avatar { width: 45px; height: 45px; border-radius: 50%; background: rgba(20,20,20,0.8); border: 2px solid #555; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; transition: transform 0.1s, box-shadow 0.1s, border-color 0.1s; position: relative; backdrop-filter: blur(5px); }
@@ -112,36 +116,45 @@
 
         #admin-announcement-ui { display: none; position: absolute; top: 15%; left: 50%; transform: translateX(-50%); background: rgba(229, 9, 20, 0.95); padding: 25px 40px; border-radius: 12px; z-index: 99999; color: white; font-size: 2rem; font-weight: 900; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid #fff; pointer-events: none; }
 
-        .reaction-bar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(20, 20, 20, 0.8); backdrop-filter: blur(10px); padding: 8px 15px; border-radius: 30px; display: flex; gap: 15px; z-index: 100; border: 1px solid var(--border-color); }
-        .reaction-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; transition: transform 0.2s; padding: 0; }
+        /* 🔤 SİNEMATİK CANLI ALTYAZI */
+        #live-captions { position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 85; pointer-events: none; width: 90%; max-width: 800px; }
+        .caption-line { background: rgba(0,0,0,0.75); padding: 8px 18px; border-radius: 12px; font-size: 1.15rem; font-weight: 500; text-shadow: 1px 1px 2px #000; border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 10px; animation: slideUpCaption 0.3s ease-out; backdrop-filter: blur(4px); transition: opacity 0.5s ease; text-align: center; }
+        .caption-line .c-avatar { font-size: 1.4rem; }
+        .caption-line .c-name { color: var(--primary); font-weight: 800; margin-right: 5px; }
+        .caption-line .c-text { color: #eee; }
+        .caption-line .c-text.interim { color: #aaa; font-style: italic; }
+        @keyframes slideUpCaption { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* 🍅 MATTER.JS FİZİKSEL EKRAN ETKİLEŞİM ALANI */
+        #matter-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 80; }
+
+        .reaction-bar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(20, 20, 20, 0.8); backdrop-filter: blur(10px); padding: 8px 15px; border-radius: 30px; display: flex; gap: 15px; z-index: 100; border: 1px solid var(--border-color); transition: opacity 0.5s ease; }
+        .reaction-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; transition: transform 0.2s; padding: 0; user-select: none; touch-action: none; }
         .reaction-btn:hover { transform: scale(1.3); }
+        
+        .dragged-emoji { position: fixed; font-size: 2rem; pointer-events: none; z-index: 999999; transform: translate(-50%, -50%); text-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+
         #floating-emoji-container { position: absolute; inset: 0; pointer-events: none; z-index: 99; overflow: hidden; }
         .floating-emoji { position: absolute; bottom: 50px; font-size: 2rem; opacity: 1; animation: floatUp 2.5s ease-out forwards; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
         @keyframes floatUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 50% { transform: translateY(-150px) scale(1.5) translateX(20px); opacity: 0.8; } 100% { transform: translateY(-300px) scale(1); opacity: 0; } }
 
-        @keyframes scare {
-            0% { filter: invert(1) hue-rotate(180deg); transform: translate(15px, -15px); }
-            10% { filter: invert(0); transform: translate(-15px, 15px); }
-            20% { filter: invert(1) hue-rotate(180deg); transform: translate(15px, 15px); }
-            30% { filter: invert(0); transform: translate(-15px, -15px); }
-            40% { filter: invert(1); transform: translate(0, 0); }
-        }
+        @keyframes scare { 0% { filter: invert(1) hue-rotate(180deg); transform: translate(15px, -15px); } 10% { filter: invert(0); transform: translate(-15px, 15px); } 20% { filter: invert(1) hue-rotate(180deg); transform: translate(15px, 15px); } 30% { filter: invert(0); transform: translate(-15px, -15px); } 40% { filter: invert(1); transform: translate(0, 0); } }
         .jumpscare { animation: scare 0.1s infinite; } .jumpscare video { opacity: 0.3; }
         .confetti { position: fixed; top: -10px; width: 12px; height: 12px; z-index: 999999; animation: fall linear forwards; pointer-events: none; border-radius: 2px; }
         @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
 
         /* Sohbet Paneli ve Özelleştirme Modu */
-        .sidebar { flex: 1; background: var(--card-bg); border-left: 1px solid var(--border-color); display: flex; flex-direction: column; max-width: var(--chat-width); width: var(--chat-width); transition: 0.3s; }
-        .sidebar-header { padding: 15px; background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
-        .sidebar-header h3 { margin: 0; font-size: 1rem; color: var(--text-color); }
+        .sidebar { flex: 1; background: var(--card-bg); border-left: 1px solid var(--border-color); display: flex; flex-direction: column; max-width: var(--chat-width); width: var(--chat-width); transition: opacity 0.5s ease; z-index: 40; }
+        .sidebar-header { padding: 15px; background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; cursor: grab; }
+        .sidebar-header:active { cursor: grabbing; }
+        .sidebar-header h3 { margin: 0; font-size: 1rem; color: var(--text-color); user-select: none; }
         
-        /* Floating (Serbest) Sohbet Paneli Sınıfı */
         .sidebar.floating {
             position: fixed !important;
             top: var(--float-top, 20px) !important;
             left: var(--float-left, 20px) !important;
             height: var(--float-height, 500px) !important;
-            width: var(--float-width, 320px) !important;
+            width: var(--chat-width, 320px) !important;
             max-width: 90vw !important;
             z-index: 10000;
             border-radius: 12px;
@@ -150,8 +163,8 @@
             overflow: hidden;
             border: 1px solid var(--border-color);
         }
-        .sidebar.floating .sidebar-header { cursor: grab; background: rgba(var(--primary), 0.2); }
-        .sidebar.floating .sidebar-header:active { cursor: grabbing; }
+        .sidebar.floating .sidebar-header { background: rgba(229, 9, 20, 0.2); }
+        .sidebar.floating::before { content: "📌 Çift tıkla sabitle"; position: absolute; top: 2px; left: 50%; transform: translateX(-50%); font-size: 0.6rem; color: #888; pointer-events: none; }
 
         .chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: rgba(0,0,0,0.1); }
         .message { background: rgba(0,0,0,0.4); padding: 10px 12px; border-radius: 10px; font-size: 0.9rem; line-height: 1.4; align-self: flex-start; max-width: 85%; word-wrap: break-word; box-shadow: 0 2px 5px rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); }
@@ -174,16 +187,30 @@
         .admin-user-item { display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.5); padding: 8px 10px; margin-bottom: 5px; border-radius: 6px; font-size: 0.85rem; border: 1px solid var(--border-color); }
         .kick-btn { background: #e50914; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold; }
 
+        /* 🧘‍♂️ AKILLI ZEN MODU */
+        body.zen-mode .header, 
+        body.zen-mode .layout-resizer, 
+        body.zen-mode .reaction-bar,
+        body.zen-mode #mobile-chat-bubble-btn {
+            opacity: 0; pointer-events: none; transition: opacity 1.5s ease;
+        }
+        body.zen-mode .sidebar:not(.floating) { opacity: 0; pointer-events: none; transition: opacity 1.5s ease; }
+
         .main-container.theater-mode .sidebar { max-width: 0; opacity: 0; overflow: hidden; border: none; padding: 0; }
         body.cinema-mode .sidebar { display: none; }
         body.cinema-mode .header { display: none; }
         body.cinema-mode .video-section { position: fixed; inset: 0; z-index: 9999; background: #000; }
-        body.cinema-mode #main-video { max-height: 100vh; transform: scale(1); } /* Sinemada scale sıfırlanır */
-        #btn-cinema-exit { display: none; position: fixed; top: 20px; right: 20px; z-index: 10000; background: rgba(229, 9, 20, 0.9); padding: 10px 20px; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        body.cinema-mode #main-video { max-height: 100vh; transform: scale(1); }
+        #btn-cinema-exit { display: none; position: fixed; top: 20px; right: 20px; z-index: 10000; background: rgba(229, 9, 20, 0.9); padding: 10px 20px; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: opacity 0.5s ease; }
         body.cinema-mode #btn-cinema-exit { display: block; }
+        body.zen-mode #btn-cinema-exit { opacity: 0; pointer-events: none; }
 
         #ptt-btn-mobile { position: fixed; bottom: 80px; right: 20px; z-index: 99999; width: 70px; height: 70px; border-radius: 50%; background: rgba(229, 9, 20, 0.9); color: white; border: 3px solid #fff; font-size: 30px; display: none; justify-content: center; align-items: center; box-shadow: 0 5px 20px rgba(0,0,0,0.5); user-select: none; -webkit-user-select: none; transition: 0.2s; }
         #ptt-btn-mobile.talking { background: #4CAF50; transform: scale(1.1); box-shadow: 0 0 20px #4CAF50; }
+
+        /* 💬 Mobil Sohbet Baloncuğu Butonu */
+        #mobile-chat-bubble-btn { position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; background: var(--primary); color: white; border-radius: 50%; display: none; justify-content: center; align-items: center; font-size: 1.5rem; z-index: 10001; box-shadow: 0 5px 20px rgba(0,0,0,0.6); border: 2px solid #fff; cursor: pointer; transition: opacity 0.5s ease, transform 0.2s; }
+        #mobile-chat-bubble-btn:hover { transform: scale(1.1); }
 
         #wrapped-overlay { position: fixed; inset: 0; z-index: 9999999; background: linear-gradient(135deg, var(--bg-color), var(--primary)); display: none; flex-direction: column; justify-content: center; align-items: center; color: white; text-align: center; overflow: hidden; }
         .w-slide { position: absolute; opacity: 0; transform: translateY(50px); transition: all 0.8s ease-out; font-size: 1.8rem; width: 90%; max-width: 600px; }
@@ -195,81 +222,38 @@
             #btn-host { display: none !important; }
             #mobile-host-warning { display: block; }
             #btn-viewer { width: 100%; }
-            .main-container { flex-direction: var(--layout-dir-mobile, column); height: 100dvh; } 
+            .main-container { flex-direction: column; height: 100dvh; } 
             .header { padding: 10px; flex-direction: column; align-items: flex-start; gap: 10px; }
             .header-left h2 { font-size: 1rem; }
             .header-controls { width: 100%; overflow-x: auto; padding-bottom: 5px; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
-            .header-controls::-webkit-scrollbar { height: 4px; }
-            .header-controls::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
             .ctrl-btn { flex-shrink: 0; padding: 8px 15px; font-size: 0.8rem; }
-            .video-section { flex: none; height: auto; }
+            .video-section { flex: 1; height: auto; }
+            .layout-resizer { display: none; } 
             
-            /* Mobilde Yükseklik Özelleştirmesi */
-            .video-wrapper { aspect-ratio: auto; max-height: var(--video-mobile-h, 40vh); height: var(--video-mobile-h, 40vh); }
-            #main-video { max-height: none; }
-            
-            .sidebar { max-width: 100% !important; width: 100% !important; flex: 1; border-left: none; border-top: 1px solid var(--border-color); height: auto; }
-            .sidebar.floating { width: 90% !important; height: 50vh !important; }
+            .sidebar { display: none; } 
+            .sidebar.floating { display: flex; width: 90% !important; height: 60vh !important; top: 10vh !important; left: 5% !important; }
+            #mobile-chat-bubble-btn { display: flex; }
+
             .chat-messages { padding: 10px; }
             .chat-input-area { padding: 10px; padding-bottom: max(10px, env(safe-area-inset-bottom)); } 
             #btn-theater { display: none; } 
-            #ptt-btn-mobile { bottom: 100px; }
+            #ptt-btn-mobile { bottom: 90px; }
             .reaction-bar { bottom: 10px; padding: 5px 10px; gap: 10px; }
             .reaction-btn { font-size: 1.2rem; }
+            #live-captions { bottom: 60px; }
         }
     </style>
 </head>
 <body>
 
-    <!-- Lobi Müziği Kaynağı (Royalty Free Lo-Fi) -->
     <audio id="lobby-audio" loop preload="auto">
         <source src="https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=lofi-study-112191.mp3" type="audio/mpeg">
     </audio>
 
     <div id="toast-container"></div>
 
-    <!-- DÜZEN ÖZELLEŞTİRME (LAYOUT) MODALI -->
-    <div class="modal-overlay" id="layout-modal">
-        <div class="modal">
-            <h2>🛠️ Düzeni Özelleştir</h2>
-            
-            <div class="setting-group" id="layout-pos-group">
-                <label>Sohbet Paneli Konumu</label>
-                <select id="layout-chat-pos">
-                    <option value="right">Sağda (Sabit)</option>
-                    <option value="left">Solda (Sabit)</option>
-                    <option value="floating">Serbest Pencere (Uçan)</option>
-                </select>
-            </div>
-            
-            <div class="setting-group mobile-only" style="display: none;">
-                <label>Mobil Sohbet Konumu</label>
-                <select id="layout-chat-pos-mobile">
-                    <option value="bottom">Altta (Sabit)</option>
-                    <option value="top">Üstte (Sabit)</option>
-                    <option value="floating">Serbest Pencere (Uçan)</option>
-                </select>
-            </div>
-
-            <div class="setting-group" id="layout-width-group">
-                <label>Sohbet Genişliği</label>
-                <input type="range" id="layout-chat-width" min="200" max="600" value="350">
-            </div>
-
-            <div class="setting-group" id="layout-scale-group">
-                <label>Video Boyutu (Yakınlaştırma)</label>
-                <input type="range" id="layout-video-scale" min="50" max="150" value="100">
-            </div>
-
-            <div class="setting-group mobile-only" style="display: none;">
-                <label>Mobil Video Yüksekliği</label>
-                <input type="range" id="layout-mobile-video-h" min="20" max="80" value="40">
-            </div>
-
-            <button class="modal-close" id="btn-layout-reset" style="background: #e50914; color: white;">Varsayılana Dön</button>
-            <button class="modal-close" onclick="document.getElementById('layout-modal').classList.remove('active')">Kapat</button>
-        </div>
-    </div>
+    <!-- Mobil Sohbet Baloncuğu -->
+    <div id="mobile-chat-bubble-btn">💬</div>
 
     <!-- INBOX VE DESTEK MODALI -->
     <div class="modal-overlay" id="inbox-modal">
@@ -342,6 +326,17 @@
             </div>
 
             <div class="setting-group">
+                <label>🔤 Sinematik Altyazı (Deneysel)</label>
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:5px; color:#fff; text-transform:none;">
+                    <input type="checkbox" id="ai-caption-toggle" style="width:auto; transform: scale(1.2);">
+                    Altyazıları Göster ve Sesimi Çevir
+                </label>
+                <p style="font-size: 0.75rem; color: #aaa; margin-top: 5px; line-height: 1.3;">
+                    Bu özellik açıkken hoparlörün/sesin kapalı dahi olsa konuşanların söylediklerini ekranda yazı olarak okuyabilirsin. Aynı zamanda sen mikrofonunu açtığında da sesin altyazıya çevrilir.
+                </p>
+            </div>
+
+            <div class="setting-group">
                 <label>🔊 Ses Karıştırıcı</label>
                 <span style="font-size:0.8rem; color:#888;">Film Sesi</span>
                 <input type="range" id="mix-video-vol" min="0" max="100" value="100">
@@ -369,7 +364,6 @@
             <input type="password" id="password-input" placeholder="Şifren">
             <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
                 <button id="btn-email-login" style="background: var(--primary); padding: 12px; border:none; color:#000; border-radius:6px; cursor:pointer; font-weight:bold;">Giriş Yap / Kayıt Ol</button>
-                <!-- DÜZELTİLMİŞ GOOGLE BUTONU VE INLINE SVG İKONU -->
                 <button id="btn-google-login" style="background: #fff; color: #333; padding: 12px; border:none; border-radius:6px; cursor:pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px;">
                     <svg style="width:20px;height:20px;" viewBox="0 0 24 24">
                         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -412,7 +406,6 @@
                     <div class="header-controls">
                         <button id="btn-lobby-music" class="ctrl-btn music" title="Bekleme Salonu Müziği">🎵 Müzik</button>
                         <button id="btn-camera" class="ctrl-btn camera" title="Yüzen Kameranı Aç">📷 Kamera</button>
-                        <button id="btn-layout" class="ctrl-btn layout-btn" title="Düzeni Özelleştir">🛠️ Düzen</button>
                         <button id="btn-theater" class="ctrl-btn theater" title="Sohbeti Daralt">↔️ Tiyatro</button>
                         <button id="btn-pip" class="ctrl-btn pip" title="Küçük Pencere">📺 PiP</button>
                         <button id="btn-cinema" class="ctrl-btn cinema" title="Işıkları Kapat">🎬 Sinema</button>
@@ -425,8 +418,13 @@
                 </div>
                 
                 <div class="video-wrapper">
-                    <!-- KONUŞAN PARLAR AVATARLARI -->
                     <div id="voice-avatars-container"></div>
+                    
+                    <!-- 🔤 Sinematik Canlı Altyazı Konteyneri -->
+                    <div id="live-captions"></div>
+
+                    <!-- 🍅 Matter.js Fizik Motoru Alanı -->
+                    <canvas id="matter-canvas"></canvas>
 
                     <video id="main-video" controls autoplay playsinline></video>
                     
@@ -439,19 +437,22 @@
                     <div id="admin-announcement-ui">📢 DUYURU BURAYA GELECEK</div>
 
                     <div id="floating-emoji-container"></div>
-                    <div class="reaction-bar">
-                        <button class="reaction-btn" onclick="window.sendReaction('😂')">😂</button>
-                        <button class="reaction-btn" onclick="window.sendReaction('😍')">😍</button>
-                        <button class="reaction-btn" onclick="window.sendReaction('😮')">😮</button>
-                        <button class="reaction-btn" onclick="window.sendReaction('😭')">😭</button>
-                        <button class="reaction-btn" onclick="window.sendReaction('🔥')">🔥</button>
-                        <button class="reaction-btn" onclick="window.sendReaction('🍿')">🍿</button>
+                    <div class="reaction-bar" id="reaction-bar">
+                        <button class="reaction-btn" data-emoji="😂">😂</button>
+                        <button class="reaction-btn" data-emoji="😍">😍</button>
+                        <button class="reaction-btn" data-emoji="😮">😮</button>
+                        <button class="reaction-btn" data-emoji="😭">😭</button>
+                        <button class="reaction-btn" data-emoji="🔥">🔥</button>
+                        <button class="reaction-btn" data-emoji="🍿">🍿</button>
                     </div>
                 </div>
             </div>
 
+            <!-- 🛠️ SÜRÜKLE KOPAR RESIZER -->
+            <div class="layout-resizer" id="main-resizer"></div>
+
             <div class="sidebar">
-                <div class="sidebar-header">
+                <div class="sidebar-header" id="sidebar-header" title="Koparmak için sürükle, sabitlemek için çift tıkla!">
                     <h3>💬 Lobi Sohbeti</h3>
                     <span id="status-text" style="color:#4CAF50; font-size: 0.8rem; font-weight:bold;">Bağlanılıyor...</span>
                 </div>
@@ -535,6 +536,332 @@
 
         const activeSpeakers = new Map();
 
+        // --- 🧘‍♂️ AKILLI ZEN MODU ---
+        let zenTimer = null;
+        function wakeUpZen() {
+            if (document.body.classList.contains('zen-mode')) {
+                document.body.classList.remove('zen-mode');
+            }
+            clearTimeout(zenTimer);
+            if (document.activeElement === document.getElementById('chat-input')) return;
+            if (!document.getElementById('video-screen').classList.contains('active')) return;
+            
+            zenTimer = setTimeout(() => {
+                document.body.classList.add('zen-mode');
+            }, 3000);
+        }
+        window.addEventListener('mousemove', wakeUpZen);
+        window.addEventListener('keydown', wakeUpZen);
+        window.addEventListener('touchstart', wakeUpZen);
+        document.getElementById('chat-input').addEventListener('focus', wakeUpZen);
+        document.getElementById('chat-input').addEventListener('blur', wakeUpZen);
+
+        // --- 🛠️ SEZGİSEL DÜZEN ---
+        const resizer = document.getElementById('main-resizer');
+        const sidebar = document.querySelector('.sidebar');
+        const sidebarHeader = document.getElementById('sidebar-header');
+        let isResizing = false;
+
+        resizer.addEventListener('mousedown', (e) => { isResizing = true; resizer.classList.add('dragging'); document.body.style.cursor = 'col-resize'; e.preventDefault(); });
+        resizer.addEventListener('touchstart', (e) => { isResizing = true; resizer.classList.add('dragging'); });
+        
+        window.addEventListener('mousemove', (e) => {
+            if (!isResizing || sidebar.classList.contains('floating')) return;
+            let newWidth = window.innerWidth - e.clientX;
+            if (newWidth < 250) newWidth = 250;
+            if (newWidth > window.innerWidth * 0.6) newWidth = window.innerWidth * 0.6;
+            document.documentElement.style.setProperty('--chat-width', newWidth + 'px');
+        });
+        window.addEventListener('mouseup', () => { if(isResizing) { isResizing = false; resizer.classList.remove('dragging'); document.body.style.cursor = 'default'; } });
+        window.addEventListener('touchend', () => { if(isResizing) { isResizing = false; resizer.classList.remove('dragging'); } });
+
+        let isDraggingFloat = false, startX, startY, initialTop, initialLeft;
+        
+        sidebarHeader.addEventListener('mousedown', floatDragStart);
+        sidebarHeader.addEventListener('touchstart', floatDragStart, {passive: false});
+        sidebarHeader.addEventListener('dblclick', () => { 
+            if(window.innerWidth > 768) { sidebar.classList.remove('floating'); showToast("Pencere sabitlendi", "info"); }
+        });
+
+        function floatDragStart(e) {
+            if (e.target.tagName.toLowerCase() === 'button' || window.innerWidth <= 768) return; 
+            isDraggingFloat = true;
+            let clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+            let clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+
+            if (!sidebar.classList.contains('floating')) {
+                sidebar.classList.add('floating');
+                document.documentElement.style.setProperty('--float-left', (clientX - 100) + 'px');
+                document.documentElement.style.setProperty('--float-top', (clientY - 20) + 'px');
+            }
+
+            const rect = sidebar.getBoundingClientRect();
+            initialTop = rect.top; initialLeft = rect.left;
+            startX = clientX; startY = clientY;
+            document.addEventListener('mousemove', floatDrag); document.addEventListener('touchmove', floatDrag, {passive: false});
+            document.addEventListener('mouseup', floatDragEnd); document.addEventListener('touchend', floatDragEnd);
+        }
+        function floatDrag(e) {
+            if (!isDraggingFloat) return; e.preventDefault();
+            let currentX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+            let currentY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+            const dx = currentX - startX; const dy = currentY - startY;
+            document.documentElement.style.setProperty('--float-top', (initialTop + dy) + 'px');
+            document.documentElement.style.setProperty('--float-left', (initialLeft + dx) + 'px');
+        }
+        function floatDragEnd() {
+            isDraggingFloat = false;
+            document.removeEventListener('mousemove', floatDrag); document.removeEventListener('touchmove', floatDrag);
+            document.removeEventListener('mouseup', floatDragEnd); document.removeEventListener('touchend', floatDragEnd);
+        }
+
+        const mobileBubbleBtn = document.getElementById('mobile-chat-bubble-btn');
+        mobileBubbleBtn.addEventListener('click', () => {
+            if (sidebar.classList.contains('floating')) {
+                sidebar.classList.remove('floating');
+                mobileBubbleBtn.innerHTML = '💬';
+            } else {
+                sidebar.classList.add('floating');
+                mobileBubbleBtn.innerHTML = '❌';
+            }
+        });
+
+        // --- 🍅 MATTER.JS FİZİKSEL EKRAN ---
+        const Engine = Matter.Engine, Render = Matter.Render, Runner = Matter.Runner, Bodies = Matter.Bodies, Composite = Matter.Composite, Events = Matter.Events;
+        const physicsEngine = Engine.create();
+        const matterCanvas = document.getElementById('matter-canvas');
+        
+        const physicsRender = Render.create({
+            canvas: matterCanvas,
+            engine: physicsEngine,
+            options: { width: window.innerWidth, height: window.innerHeight, background: 'transparent', wireframes: false }
+        });
+        
+        let physicsWalls = [];
+        function updateMatterBounds() {
+            const w = document.querySelector('.video-wrapper').clientWidth;
+            const h = document.querySelector('.video-wrapper').clientHeight;
+            matterCanvas.width = w; matterCanvas.height = h;
+            physicsRender.options.width = w; physicsRender.options.height = h;
+            
+            if(physicsWalls.length > 0) Composite.remove(physicsEngine.world, physicsWalls);
+            const ground = Bodies.rectangle(w/2, h + 25, w, 50, { isStatic: true });
+            const wallL = Bodies.rectangle(-25, h/2, 50, h, { isStatic: true });
+            const wallR = Bodies.rectangle(w+25, h/2, 50, h, { isStatic: true });
+            physicsWalls = [ground, wallL, wallR];
+            Composite.add(physicsEngine.world, physicsWalls);
+        }
+        window.addEventListener('resize', updateMatterBounds);
+
+        Events.on(physicsRender, 'afterRender', function() {
+            const ctx = physicsRender.context;
+            ctx.font = "35px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            Composite.allBodies(physicsEngine.world).forEach(body => {
+                if (body.plugin && body.plugin.emoji) {
+                    ctx.save();
+                    ctx.translate(body.position.x, body.position.y);
+                    ctx.rotate(body.angle);
+                    ctx.fillText(body.plugin.emoji, 0, 0);
+                    ctx.restore();
+                }
+            });
+        });
+
+        Runner.run(Runner.create(), physicsEngine);
+        Render.run(physicsRender);
+
+        let dragEmojiEl = null, dragEmojiChar = '', dragHistory = [];
+        document.querySelectorAll('.reaction-btn').forEach(btn => {
+            btn.addEventListener('mousedown', startEmojiDrag);
+            btn.addEventListener('touchstart', startEmojiDrag, {passive: false});
+        });
+
+        function startEmojiDrag(e) {
+            e.preventDefault();
+            dragEmojiChar = e.target.dataset.emoji;
+            dragEmojiEl = document.createElement('div');
+            dragEmojiEl.className = 'dragged-emoji';
+            dragEmojiEl.innerText = dragEmojiChar;
+            document.body.appendChild(dragEmojiEl);
+            
+            let clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+            let clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+            dragEmojiEl.style.left = clientX + 'px'; dragEmojiEl.style.top = clientY + 'px';
+            dragHistory = [{x: clientX, y: clientY, t: Date.now()}];
+            
+            document.addEventListener('mousemove', moveEmojiDrag); document.addEventListener('touchmove', moveEmojiDrag, {passive: false});
+            document.addEventListener('mouseup', endEmojiDrag); document.addEventListener('touchend', endEmojiDrag);
+        }
+
+        function moveEmojiDrag(e) {
+            if(!dragEmojiEl) return; e.preventDefault();
+            let clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+            let clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+            dragEmojiEl.style.left = clientX + 'px'; dragEmojiEl.style.top = clientY + 'px';
+            dragHistory.push({x: clientX, y: clientY, t: Date.now()});
+            if(dragHistory.length > 5) dragHistory.shift();
+        }
+
+        function endEmojiDrag(e) {
+            if(!dragEmojiEl) return;
+            document.removeEventListener('mousemove', moveEmojiDrag); document.removeEventListener('touchmove', moveEmojiDrag);
+            document.removeEventListener('mouseup', endEmojiDrag); document.removeEventListener('touchend', endEmojiDrag);
+            
+            let vx = 0, vy = -15; 
+            if (dragHistory.length > 1) {
+                const first = dragHistory[0]; const last = dragHistory[dragHistory.length - 1];
+                const dt = last.t - first.t;
+                if(dt > 0) { vx = ((last.x - first.x) / dt) * 15; vy = ((last.y - first.y) / dt) * 15; }
+            }
+            
+            const rect = document.querySelector('.video-wrapper').getBoundingClientRect();
+            let dropX = dragHistory[dragHistory.length - 1].x - rect.left;
+            let dropY = dragHistory[dragHistory.length - 1].y - rect.top;
+            
+            if(dropX < 0 || dropX > rect.width || dropY < 0 || dropY > rect.height) { dropX = rect.width / 2; dropY = rect.height - 50; }
+
+            dragEmojiEl.remove(); dragEmojiEl = null;
+            spawnPhysicsEmoji(dragEmojiChar, dropX, dropY, vx, vy, true);
+        }
+
+        function spawnPhysicsEmoji(emoji, x, y, vx, vy, isLocalThrow = false) {
+            const body = Bodies.circle(x, y, 20, { restitution: 0.8, frictionAir: 0.01, density: 0.04, plugin: { emoji: emoji } });
+            Matter.Body.setVelocity(body, { x: vx, y: vy });
+            Composite.add(physicsEngine.world, body);
+            
+            setTimeout(() => { Composite.remove(physicsEngine.world, body); }, 8000); 
+
+            if(isLocalThrow) {
+                stats.emojiCount++;
+                const data = { type: 'PHYSICS_EMOJI', emoji: emoji, xRatio: x / matterCanvas.width, yRatio: y / matterCanvas.height, vx: vx, vy: vy };
+                if (isHost) viewers.forEach(v => v.conn.send(data)); else if (hostConnection?.open) hostConnection.send(data);
+            }
+        }
+
+        // --- 🔤 SİNEMATİK CANLI ALTYAZI (Kusursuz Çoklu Kullanıcı & Bağımsız Okuma) ---
+        let speechRecog = null;
+        let isAiCaptionsEnabled = false;
+        let shouldBeRecognizing = false;
+        let activeCaptionLines = {}; // Ekranda aktif olarak yazılan altyazı elementlerini takip eder
+
+        document.getElementById('ai-caption-toggle').addEventListener('change', (e) => {
+            isAiCaptionsEnabled = e.target.checked;
+            if (isAiCaptionsEnabled && !('webkitSpeechRecognition' in window)) {
+                showToast("Tarayıcınız AI Altyazı desteklemiyor.", "error"); 
+                e.target.checked = false; 
+                isAiCaptionsEnabled = false;
+            } else {
+                if(isAiCaptionsEnabled) showToast("Sinematik Altyazı Açık", "success");
+                updateSpeechRecognitionState(); // Mikrofona göre durumu hemen ayarla
+            }
+        });
+
+        // Mikrofon açık mı ve çeviri yapılabilir mi kontrolü
+        function updateSpeechRecognitionState() {
+            if (!speechRecog) return;
+            const micIsOpen = micStream && (!isPttMode || isTalking);
+            
+            if (isAiCaptionsEnabled && micIsOpen) {
+                if (!shouldBeRecognizing) {
+                    shouldBeRecognizing = true;
+                    try { speechRecog.start(); } catch(e){}
+                }
+            } else {
+                if (shouldBeRecognizing) {
+                    shouldBeRecognizing = false;
+                    try { speechRecog.stop(); } catch(e){}
+                }
+            }
+        }
+
+        if ('webkitSpeechRecognition' in window) {
+            speechRecog = new webkitSpeechRecognition();
+            speechRecog.continuous = true;
+            speechRecog.interimResults = true; // Canlı yazılma hissi için aktif
+            speechRecog.lang = 'tr-TR';
+            
+            speechRecog.onresult = (e) => {
+                let interimTranscript = '';
+                let finalTranscript = '';
+                
+                for (let i = e.resultIndex; i < e.results.length; ++i) {
+                    if (e.results[i].isFinal) finalTranscript += e.results[i][0].transcript;
+                    else interimTranscript += e.results[i][0].transcript;
+                }
+                
+                // Kendi altyazımızı ekrana basıp karşıya gönderiyoruz
+                if (finalTranscript.trim()) {
+                    displayLiveCaption('local', myAvatar, myUsername, finalTranscript, true);
+                    broadcastCaption(finalTranscript, true);
+                } else if (interimTranscript.trim()) {
+                    displayLiveCaption('local', myAvatar, myUsername, interimTranscript, false);
+                    broadcastCaption(interimTranscript, false);
+                }
+            };
+
+            speechRecog.onend = () => {
+                // Eğer kullanıcı mikrofonda konuşmaya devam ediyorsa motoru güvenli şekilde yeniden başlat
+                if (shouldBeRecognizing) {
+                    try { speechRecog.start(); } catch(e){}
+                }
+            };
+            
+            speechRecog.onerror = (e) => {
+                if (e.error !== 'no-speech' && e.error !== 'aborted') {
+                    console.warn("Altyazı Hatası:", e.error);
+                }
+            };
+        }
+
+        function broadcastCaption(text, isFinal) {
+            // peer.id göndermemizin sebebi; karşı tarafın kime ait bir metin olduğunu ayırmasını sağlamaktır.
+            const capData = { type: 'LIVE_CAPTION', peerId: (peer ? peer.id : 'unknown'), text: text, isFinal: isFinal, avatar: myAvatar, username: myUsername };
+            if (isHost) {
+                viewers.forEach(v => v.conn.send(capData));
+            } else if (hostConnection?.open) {
+                hostConnection.send(capData);
+            }
+        }
+
+        function displayLiveCaption(id, avatar, username, text, isFinal) {
+            // Kullanıcı bu özelliği kapattıysa gelen verileri (başkaları atsa bile) ekranda göstermiyoruz.
+            if (!isAiCaptionsEnabled) return;
+            
+            const capContainer = document.getElementById('live-captions');
+            let line = activeCaptionLines[id];
+            
+            // Eğer bu kullanıcı ID'si için ekranda zaten güncellenen bir satır yoksa, yeni bir satır oluştur
+            if (!line) {
+                line = document.createElement('div');
+                line.className = 'caption-line';
+                capContainer.appendChild(line);
+                activeCaptionLines[id] = line;
+                
+                // Ekranda en fazla 4 satır altyazı tut, eskileri sil
+                if(capContainer.children.length > 4) {
+                    let oldest = capContainer.firstChild;
+                    if(oldest.dataset.peerId) delete activeCaptionLines[oldest.dataset.peerId];
+                    capContainer.removeChild(oldest);
+                }
+            }
+            
+            line.dataset.peerId = id;
+            line.innerHTML = `<span class="c-avatar">${avatar}</span> <span><span class="c-name">${username}:</span> <span class="c-text ${isFinal ? '' : 'interim'}">${text}</span></span>`;
+            
+            // Eğer cümle bittiyse (isFinal), aktifler listesinden çıkar ve 4 saniye sonra ekranı temizle
+            if (isFinal) {
+                delete activeCaptionLines[id];
+                setTimeout(() => {
+                    if (line && line.parentNode) {
+                        line.style.opacity = '0';
+                        setTimeout(() => line.remove(), 500); // Fading efektiyle zarifçe silinir
+                    }
+                }, 4000); 
+            }
+        }
+
         // --- KİMLİK DOĞRULAMA (AUTH) ---
         onAuthStateChanged(auth, (user) => {
             if (user) {
@@ -547,7 +874,6 @@
                 document.getElementById('username-input').value = myUsername; 
                 document.getElementById('btn-logout').style.display = 'inline-block';
                 
-                // Admin UI Toggles
                 document.getElementById('admin-badge').style.display = isAdmin ? 'inline' : 'none';
                 document.getElementById('support-user-view').style.display = isAdmin ? 'none' : 'block';
                 document.getElementById('support-admin-view').style.display = isAdmin ? 'block' : 'none';
@@ -571,120 +897,6 @@
             });
         });
         document.getElementById('btn-logout').addEventListener('click', () => { signOut(auth); document.getElementById('settings-modal').classList.remove('active'); });
-
-        // --- ÖZELLEŞTİRME MODU (LAYOUT CUSTOMIZER) ---
-        const layoutModal = document.getElementById('layout-modal');
-        const root = document.documentElement;
-        const sidebar = document.querySelector('.sidebar');
-        
-        document.getElementById('btn-layout').addEventListener('click', () => {
-            layoutModal.classList.add('active');
-            if (window.innerWidth <= 768) {
-                document.querySelectorAll('.mobile-only').forEach(el => el.style.display = 'block');
-                document.getElementById('layout-width-group').style.display = 'none';
-                document.getElementById('layout-pos-group').style.display = 'none';
-                document.getElementById('layout-scale-group').style.display = 'none';
-            } else {
-                document.querySelectorAll('.mobile-only').forEach(el => el.style.display = 'none');
-                document.getElementById('layout-width-group').style.display = 'block';
-                document.getElementById('layout-pos-group').style.display = 'block';
-                document.getElementById('layout-scale-group').style.display = 'block';
-            }
-        });
-
-        document.getElementById('layout-chat-pos').addEventListener('change', (e) => {
-            const val = e.target.value;
-            sidebar.classList.remove('floating');
-            if (val === 'right') { root.style.setProperty('--layout-dir', 'row'); } 
-            else if (val === 'left') { root.style.setProperty('--layout-dir', 'row-reverse'); } 
-            else if (val === 'floating') {
-                sidebar.classList.add('floating');
-                if(!sidebar.style.getPropertyValue('--float-top')) {
-                    root.style.setProperty('--float-top', '50px');
-                    root.style.setProperty('--float-left', '50px');
-                }
-            }
-        });
-
-        document.getElementById('layout-chat-pos-mobile').addEventListener('change', (e) => {
-            const val = e.target.value;
-            sidebar.classList.remove('floating');
-            if (val === 'bottom') { root.style.setProperty('--layout-dir-mobile', 'column'); } 
-            else if (val === 'top') { root.style.setProperty('--layout-dir-mobile', 'column-reverse'); } 
-            else if (val === 'floating') {
-                sidebar.classList.add('floating');
-                root.style.setProperty('--float-top', '10px');
-                root.style.setProperty('--float-left', '5%');
-            }
-        });
-
-        document.getElementById('layout-chat-width').addEventListener('input', (e) => {
-            root.style.setProperty('--chat-width', e.target.value + 'px');
-            root.style.setProperty('--float-width', e.target.value + 'px');
-        });
-
-        document.getElementById('layout-video-scale').addEventListener('input', (e) => {
-            root.style.setProperty('--video-scale', e.target.value / 100);
-        });
-
-        document.getElementById('layout-mobile-video-h').addEventListener('input', (e) => {
-            root.style.setProperty('--video-mobile-h', e.target.value + 'vh');
-        });
-
-        document.getElementById('btn-layout-reset').addEventListener('click', () => {
-            root.style.removeProperty('--layout-dir');
-            root.style.removeProperty('--layout-dir-mobile');
-            root.style.removeProperty('--chat-width');
-            root.style.removeProperty('--video-scale');
-            root.style.removeProperty('--video-mobile-h');
-            root.style.removeProperty('--float-top');
-            root.style.removeProperty('--float-left');
-            root.style.removeProperty('--float-width');
-            root.style.removeProperty('--float-height');
-            sidebar.classList.remove('floating');
-            sidebar.style.width = ''; sidebar.style.height = ''; // Temizle inline CSS
-            
-            document.getElementById('layout-chat-pos').value = 'right';
-            document.getElementById('layout-chat-pos-mobile').value = 'bottom';
-            document.getElementById('layout-chat-width').value = 350;
-            document.getElementById('layout-video-scale').value = 100;
-            document.getElementById('layout-mobile-video-h').value = 40;
-            
-            showToast("Düzen varsayılana döndürüldü", "success");
-        });
-
-        // Floating Drag (Serbest Sürükleme) Mantığı
-        const sidebarHeader = document.querySelector('.sidebar-header');
-        let isDragging = false, startX, startY, initialTop, initialLeft;
-        
-        sidebarHeader.addEventListener('mousedown', dragStart);
-        sidebarHeader.addEventListener('touchstart', dragStart, {passive: false});
-
-        function dragStart(e) {
-            if (!sidebar.classList.contains('floating')) return;
-            if (e.target.tagName.toLowerCase() === 'button') return; 
-            isDragging = true;
-            if(e.type === 'touchstart') { startX = e.touches[0].clientX; startY = e.touches[0].clientY; } 
-            else { startX = e.clientX; startY = e.clientY; }
-            const rect = sidebar.getBoundingClientRect();
-            initialTop = rect.top; initialLeft = rect.left;
-            document.addEventListener('mousemove', drag); document.addEventListener('touchmove', drag, {passive: false});
-            document.addEventListener('mouseup', dragEnd); document.addEventListener('touchend', dragEnd);
-        }
-        function drag(e) {
-            if (!isDragging) return; e.preventDefault();
-            let currentX, currentY;
-            if(e.type === 'touchmove') { currentX = e.touches[0].clientX; currentY = e.touches[0].clientY; } 
-            else { currentX = e.clientX; currentY = e.clientY; }
-            const dx = currentX - startX; const dy = currentY - startY;
-            root.style.setProperty('--float-top', (initialTop + dy) + 'px');
-            root.style.setProperty('--float-left', (initialLeft + dx) + 'px');
-        }
-        function dragEnd() {
-            isDragging = false;
-            document.removeEventListener('mousemove', drag); document.removeEventListener('touchmove', drag);
-            document.removeEventListener('mouseup', dragEnd); document.removeEventListener('touchend', dragEnd);
-        }
 
         // --- INBOX (BİLDİRİM & DESTEK) MANTIĞI ---
         function loadInboxAndSupport() {
@@ -778,7 +990,6 @@
             viewers.forEach(v => v.conn.send({ type: 'LOBBY_MUSIC', state: isLobbyMusicPlaying }));
         });
 
-        // --- SÜRÜKLENEBİLİR (DRAGGABLE) KAMERA ---
         function makeDraggable(el) {
             let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
             el.onmousedown = dragMouseDown; el.ontouchstart = dragTouchStart;
@@ -822,7 +1033,6 @@
             }
         });
 
-        // --- DİNAMİK TEMA ---
         window.applyTheme = function(theme) {
             document.body.classList.remove('theme-cinema', 'theme-cyberpunk', 'theme-derbi');
             if (theme !== 'default') document.body.classList.add(theme);
@@ -832,7 +1042,6 @@
             viewers.forEach(v => v.conn.send({ type: 'THEME', theme: currentTheme }));
         });
 
-        // --- GÖRSEL EFEKTLER ---
         window.triggerEffect = function(type) {
             if (type === 'scare') {
                 document.body.classList.add('jumpscare'); if(navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]); 
@@ -853,17 +1062,6 @@
             addChatMessage("Sistem", "📢", `DUYURU: ${msg}`, false); setTimeout(() => { el.style.display = 'none'; el.style.animation = ''; }, 6000); 
         };
 
-        window.sendReaction = function(emoji) {
-            spawnFloatingEmoji(emoji); stats.emojiCount++;
-            const data = { type: 'REACTION', emoji: emoji };
-            if (isHost) viewers.forEach(v => v.conn.send(data)); else if (hostConnection?.open) hostConnection.send(data);
-        };
-
-        function spawnFloatingEmoji(emoji) {
-            const el = document.createElement('div'); el.className = 'floating-emoji'; el.innerText = emoji; el.style.left = `${Math.random() * 80 + 10}%`; 
-            document.getElementById('floating-emoji-container').appendChild(el); setTimeout(() => el.remove(), 2500);
-        }
-
         // --- AYARLAR MODALI ---
         const settingsModal = document.getElementById('settings-modal');
         let selectedMicId = 'default', selectedSpeakerId = 'default';
@@ -876,8 +1074,13 @@
 
         document.getElementById('voice-mode-select').addEventListener('change', (e) => {
             isPttMode = (e.target.value === 'ptt');
-            if(isPttMode && micStream) { micStream.getAudioTracks().forEach(t => t.enabled = false); pttBtnMobile.style.display = 'flex'; btnMic.innerHTML = "🛑 Bas-Konuş Bekliyor"; btnMic.style.background = "#e50914"; } 
-            else { if(micStream) micStream.getAudioTracks().forEach(t => t.enabled = true); pttBtnMobile.style.display = 'none'; if(micStream) { btnMic.innerHTML = "🎤 Mikrofon Açık"; btnMic.style.background = "#4CAF50"; } }
+            if(isPttMode && micStream) { 
+                micStream.getAudioTracks().forEach(t => t.enabled = false); pttBtnMobile.style.display = 'flex'; btnMic.innerHTML = "🛑 Bas-Konuş Bekliyor"; btnMic.style.background = "#e50914"; 
+            } 
+            else { 
+                if(micStream) micStream.getAudioTracks().forEach(t => t.enabled = true); pttBtnMobile.style.display = 'none'; if(micStream) { btnMic.innerHTML = "🎤 Mikrofon Açık"; btnMic.style.background = "#4CAF50"; } 
+            }
+            updateSpeechRecognitionState(); // Mikrofonda konuşabilirlik durumu değiştiği için AI'yi güncelle
         });
 
         document.getElementById('whisper-mode-toggle').addEventListener('change', (e) => isWhisperMode = e.target.checked);
@@ -904,8 +1107,21 @@
         document.getElementById('mic-select').addEventListener('change', (e) => selectedMicId = e.target.value);
         document.getElementById('speaker-select').addEventListener('change', (e) => { selectedSpeakerId = e.target.value; if (typeof videoElement.setSinkId !== 'undefined') { videoElement.setSinkId(selectedSpeakerId).catch(()=>{}); activeAudioElements.forEach(a => a.setSinkId(selectedSpeakerId).catch(()=>{})); } });
 
-        function startTalking() { if(!isPttMode || !micStream || isTalking) return; isTalking = true; micStream.getAudioTracks().forEach(t => t.enabled = true); pttBtnMobile.classList.add('talking'); btnMic.innerHTML = "🎙️ Konuşuluyor..."; btnMic.style.background = "#4CAF50"; }
-        function stopTalking() { if(!isPttMode || !micStream || !isTalking) return; isTalking = false; micStream.getAudioTracks().forEach(t => t.enabled = false); pttBtnMobile.classList.remove('talking'); btnMic.innerHTML = "🛑 Bas-Konuş Bekliyor"; btnMic.style.background = "#e50914"; }
+        function startTalking() { 
+            if(!isPttMode || !micStream || isTalking) return; 
+            isTalking = true; 
+            micStream.getAudioTracks().forEach(t => t.enabled = true); 
+            pttBtnMobile.classList.add('talking'); btnMic.innerHTML = "🎙️ Konuşuluyor..."; btnMic.style.background = "#4CAF50"; 
+            updateSpeechRecognitionState(); 
+        }
+        function stopTalking() { 
+            if(!isPttMode || !micStream || !isTalking) return; 
+            isTalking = false; 
+            micStream.getAudioTracks().forEach(t => t.enabled = false); 
+            pttBtnMobile.classList.remove('talking'); btnMic.innerHTML = "🛑 Bas-Konuş Bekliyor"; btnMic.style.background = "#e50914"; 
+            updateSpeechRecognitionState(); 
+        }
+        
         window.addEventListener('keydown', (e) => { if (e.code === 'Space' && e.target.tagName !== 'INPUT' && isPttMode && micStream) { e.preventDefault(); startTalking(); } });
         window.addEventListener('keyup', (e) => { if (e.code === 'Space' && e.target.tagName !== 'INPUT' && isPttMode) { e.preventDefault(); stopTalking(); } });
         pttBtnMobile.addEventListener('mousedown', startTalking); pttBtnMobile.addEventListener('mouseup', stopTalking); pttBtnMobile.addEventListener('mouseleave', stopTalking);
@@ -936,6 +1152,8 @@
             document.getElementById('login-screen').classList.remove('active'); document.getElementById('video-screen').classList.add('active');
             chatMessages.innerHTML = ''; addChatMessage("Sistem", "💻", "Odaya katıldınız. İyi seyirler!", false);
             stats = { startTime: Date.now(), myMsgCount: 0, totalMsgCount: 0, emojiCount: 0, userMsgCounts: {} };
+            updateMatterBounds(); 
+            wakeUpZen(); 
         }
 
         function addChatMessage(sender, avatar, text, isMe) {
@@ -947,7 +1165,6 @@
             const emojiMatch = text.match(/\p{Emoji}/gu); if(emojiMatch) stats.emojiCount += emojiMatch.length;
         }
 
-        // --- KONUŞAN PARLAR AVATAR SİSTEMİ ---
         function createVoiceAvatarElement(id, name, avatar) {
             if(document.getElementById('v-avatar-'+id)) return document.getElementById('v-avatar-'+id);
             const el = document.createElement('div'); el.className = 'v-avatar'; el.id = 'v-avatar-' + id;
@@ -973,7 +1190,9 @@
             activeAudioElements.forEach(a => a.remove()); activeAudioElements = [];
             
             document.getElementById('voice-avatars-container').innerHTML = ''; activeSpeakers.clear();
+            document.getElementById('live-captions').innerHTML = ''; activeCaptionLines = {};
             document.querySelectorAll('.face-cam-bubble').forEach(e => e.remove()); window.toggleLobbyMusic(false);
+            Composite.clear(physicsEngine.world); Composite.add(physicsEngine.world, physicsWalls); 
 
             videoElement.srcObject = null; document.getElementById('video-screen').classList.remove('active'); document.getElementById('login-screen').classList.add('active');
             document.body.classList.remove('cinema-mode'); mainUiContainer.classList.remove('theater-mode'); window.applyTheme('default'); 
@@ -1018,6 +1237,7 @@
                 btnMic.classList.remove('active'); btnMic.innerHTML = "🎤 Mikrofon"; btnMic.style.background = "#444";
                 activeVoiceCalls.forEach(call => call.close()); activeVoiceCalls.clear(); pttBtnMobile.style.display = 'none';
                 removeVoiceAvatar('local'); localAnalyser = null; showToast("Mikrofon kapatıldı.", "info");
+                updateSpeechRecognitionState();
             } else {
                 try {
                     const constraints = { audio: selectedMicId !== 'default' ? { deviceId: { exact: selectedMicId } } : true };
@@ -1032,6 +1252,8 @@
                     const el = createVoiceAvatarElement('local', myUsername, myAvatar); activeSpeakers.set('local', { analyser: localAnalyser, element: el });
                     
                     showToast("Sese bağlanıldı!", "success");
+                    updateSpeechRecognitionState();
+
                     const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar };
                     if (isHost) { viewers.forEach((v, pId) => { const call = peer.call(pId, micStream, { metadata: voiceMeta }); activeVoiceCalls.set(pId, call); }); } 
                     else { const call = peer.call(hostId, micStream, { metadata: voiceMeta }); activeVoiceCalls.set(hostId, call); }
@@ -1043,7 +1265,17 @@
 
         function handleIncomingData(data, conn = null) {
             if (data.type === 'CHAT') { addChatMessage(data.sender, data.avatar, data.text, false); if (isHost && conn) viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); }); } 
-            else if (data.type === 'REACTION') { spawnFloatingEmoji(data.emoji); if (isHost && conn) viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); }); }
+            else if (data.type === 'PHYSICS_EMOJI') { 
+                const dropX = data.xRatio * matterCanvas.width;
+                const dropY = data.yRatio * matterCanvas.height;
+                spawnPhysicsEmoji(data.emoji, dropX, dropY, data.vx, data.vy, false);
+                if (isHost && conn) viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); });
+            }
+            // Canlı Altyazıyı Ekranımıza Basar
+            else if (data.type === 'LIVE_CAPTION') { 
+                displayLiveCaption(data.peerId, data.avatar, data.username, data.text, data.isFinal); 
+                if (isHost && conn) viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); }); 
+            }
             else if (data.type === 'CLEAR_CHAT') { chatMessages.innerHTML = ''; showToast("Sohbet temizlendi.", "info"); }
             else if (data.type === 'KICK') { showToast("Odadan atıldınız!", "error"); setTimeout(showWrappedAndDisconnect, 1000); }
             else if (data.type === 'ADMIN_MSG') { window.showAdminAnnouncement(data.text); }
