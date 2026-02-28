@@ -6,7 +6,6 @@
     <title>🍿 Comba Watch Party Ultimate</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
-    <!-- YouTube Senkronize Oynatıcı İçin -->
     <script src="https://www.youtube.com/iframe_api"></script>
     <style>
         :root { 
@@ -250,10 +249,8 @@
 
     <div id="toast-container"></div>
 
-    <!-- Mobil Sohbet Baloncuğu -->
     <div id="mobile-chat-bubble-btn">💬</div>
 
-    <!-- BİREYSEL KULLANICI MODALI (Sesi Kısma / Arkadaş Ekleme) -->
     <div class="modal-overlay" id="user-action-modal">
         <div class="modal" style="max-width: 350px;">
             <div class="user-action-header">
@@ -277,7 +274,6 @@
         </div>
     </div>
 
-    <!-- SENKRONİZE MEDYA MODALI -->
     <div class="modal-overlay" id="sync-media-modal">
         <div class="modal">
             <h2>🎬 Senkronize Medya Kur</h2>
@@ -293,7 +289,6 @@
         </div>
     </div>
 
-    <!-- INBOX VE DESTEK MODALI -->
     <div class="modal-overlay" id="inbox-modal">
         <div class="modal" style="max-width: 500px; padding: 20px;">
             <h2>📬 Bildirim Merkezi <span id="admin-badge" style="display:none; color:gold; font-size:0.8rem; border:1px solid gold; padding:2px 5px; border-radius:4px; margin-left:10px;">👑 Admin</span></h2>
@@ -374,7 +369,6 @@
                 </label>
             </div>
 
-            <!-- SES DEĞİŞTİRİCİ SADECE PC İÇİN -->
             <div class="setting-group hide-on-mobile">
                 <label>🎙️ Ses Değiştirici Efekt</label>
                 <select id="voice-effect-select">
@@ -404,10 +398,8 @@
         </div>
     </div>
 
-    <!-- PTT BUTONU -->
     <div id="ptt-btn-mobile" title="Konuşmak için basılı tut">🎙️</div>
 
-    <!-- 🌟 LOGIN VE BAŞLANGIÇ EKRANI -->
     <div id="login-screen" class="screen active">
         <div class="card" id="auth-card">
             <h1>🍿 Comba Watch Party</h1>
@@ -450,7 +442,6 @@
         </div>
     </div>
 
-    <!-- 🌟 ANA VİDEO VE ODA EKRANI -->
     <div id="video-screen" class="screen">
         <button id="btn-cinema-exit">❌ Sinemadan Çık</button>
         <div class="main-container" id="main-ui-container">
@@ -548,7 +539,6 @@
         </div>
     </div>
 
-    <!-- FIREBASE VE ANA SCRIPT -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
@@ -607,6 +597,24 @@
         let currentTheme = 'default';
         let isAdmin = false, myUid = "anon_" + Date.now();
         let globalMicEnabled = false; 
+
+        // EKSİK TANIMLAMALAR EKLENDİ (Katı mod çökmesini engellemek için)
+        let otherPeers = [];
+        let localAnalyser = null;
+        let zenTimer = null;
+
+        // EKSİK FONKSİYON EKLENDİ (UI Otomatik Gizleyici)
+        function wakeUpZen() {
+            document.body.classList.remove('zen-mode');
+            clearTimeout(zenTimer);
+            zenTimer = setTimeout(() => {
+                if (document.getElementById('video-screen').classList.contains('active') && !isTheaterMode) {
+                    document.body.classList.add('zen-mode');
+                }
+            }, 6000); // 6 saniye hareketsizlikte Zen modu aktif olur
+        }
+        window.addEventListener('mousemove', wakeUpZen);
+        window.addEventListener('touchstart', wakeUpZen);
 
         // Bireysel Ses Haritaları
         let peerVolumes = {}; 
@@ -1670,7 +1678,10 @@
                 setupPeerListeners();
                 peer.on('error', err => { if (err.type === 'peer-unavailable') { showToast("Yayıncıya ulaşılamıyor!", "error"); setTimeout(executeDisconnect, 2000); } });
                 
-            }).catch(error => showToast("Oda kontrol edilemedi.", "error"));
+            }).catch(error => {
+                console.error("Firebase/Kod Hatası:", error);
+                showToast("Oda kontrol edilemedi.", "error");
+            });
         });
 
         document.getElementById('force-play-btn').addEventListener('click', () => { playOverlay.style.display = 'none'; videoElement.play(); if(syncActive && !isHost) syncVideo.play(); });
