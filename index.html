@@ -394,8 +394,8 @@
                     Altyazıları Göster ve Sesimi Çevir
                 </label>
                 <p style="font-size: 0.75rem; color: #aaa; margin-top: 5px; line-height: 1.3;">
-                    Bu özellik açıkken, hoparlörün veya mikrofonun kapalı olsa bile odadaki diğer kişilerin söylediklerini altyazı olarak okuyabilirsin (Onlarda bu ayar kapalı olsa dahi). 
-                    <br><span style="color:#ffeb3b; display:inline-block; margin-top:4px;">Not: Mobil cihazlarda donanımsal Yankı ve zorunlu "Bip" sorunlarını engellemek için, sizin sesinizin altyazıya çevrilmesi (gönderimi) sadece PC/Masaüstü'nden bağlandığınızda çalışır. Mobilden sadece ekrandaki yazıları kusursuzca okuyabilirsiniz.</span>
+                    Bu özellik açıkken, hoparlörün kapalı olsa bile odadaki kişilerin söylediklerini okuyabilirsin. <br>
+                    <span style="color:#4CAF50; display:inline-block; margin-top:4px;">✅ <b>Mobil Düzeltmesi:</b> Asistanın <i>aralıklı bip</i> sorununu tamamen çözmek adına, mobilde "Sürekli Açık" yerine <b style="color:white;">Bas-Konuş (PTT)</b> kullanırsanız altyazı motorunuz tek bir kısa bip ile senkronize çalışır. Yankı da tamamen giderilmiştir. (Mobil de olsa artık diğer PC'ler sizi altyazıdan okuyabilecek!)</span>
                 </p>
             </div>
 
@@ -875,20 +875,13 @@
             }
         }
 
-        // --- 🔤 SİNEMATİK CANLI ALTYAZI ---
+        // --- 🔤 SİNEMATİK CANLI ALTYAZI (DÖNGÜ KESİLDİ & PTT EKLENDİ) ---
         let speechRecog = null;
         let isAiCaptionsEnabled = false;
         let activeCaptionLines = {}; 
+        let isRecogRunning = false;
 
-        // Altyazı motoru
         function initSpeechRecog() {
-            // 🚀 BİP SESİ VE YANKI ÇÖZÜMÜ:
-            // Mobil tarayıcılarda (Android Chrome) WebKitSpeechRecognition ve Sürekli Mikrofon aynı anda çalıştırıldığında 
-            // 1- İnanılmaz yüksek bir sistem BİP sesi çalar. 
-            // 2- Sistem mikrofonu bozulduğu için Yankı(Echo) engelleme çalışmaz.
-            // ÇÖZÜM: Mobilde bu motoru ASLA başlatma. Böylece 0 sorun yaşanır. Mobil kullanıcılar sadece "Okuyucu" olur.
-            if (isMobile) return false; 
-            
             if (!('webkitSpeechRecognition' in window)) return false;
             if (speechRecog) return true; 
             
@@ -897,6 +890,8 @@
             speechRecog.interimResults = true; 
             speechRecog.lang = 'tr-TR';
             
+            speechRecog.onstart = () => { isRecogRunning = true; };
+
             speechRecog.onresult = (e) => {
                 if (isPttMode && !isTalking) return; 
                 
@@ -909,6 +904,7 @@
                 }
                 
                 if (finalTranscript.trim()) {
+                    // Mobil de olsa altyazı odaya fırlatılır, böylece PC'dekiler görebilir!
                     broadcastCaption(finalTranscript, true);
                     if (isAiCaptionsEnabled) displayLiveCaption('local', myAvatar, myUsername, finalTranscript, true);
                 } else if (interimTranscript.trim()) {
@@ -918,6 +914,9 @@
             };
 
             speechRecog.onend = () => {
+                isRecogRunning = false;
+                // 🚀 MOBİL BİP DÖNGÜSÜ KESİN ÇÖZÜMÜ: 
+                // Mobilde asistanı otomatik yeniden başlatmıyoruz. Bu sayede "aralıklı aralıklı gelen Bip" sesini kökten kesiyoruz!
                 if (globalMicEnabled && speechRecog && !isMobile) {
                     try { 
                         preventSystemBeep(); 
@@ -927,14 +926,11 @@
             };
             
             speechRecog.onerror = (e) => {
-                if (e.error !== 'no-speech' && e.error !== 'aborted') {
-                    console.warn("Altyazı Hatası:", e.error);
-                }
+                isRecogRunning = false;
             };
             return true;
         }
         
-        // Sadece destekliyorsa (ve mobil değilse) motoru sinsi şekilde hazırla
         initSpeechRecog();
 
         // 🟢 SADECE ARAYÜZ (UI) GÖRÜNÜMÜNÜ AÇIP KAPATIR
@@ -1238,12 +1234,21 @@
             isTalking = true; 
             micStream.getAudioTracks().forEach(t => t.enabled = true); 
             pttBtnMobile.classList.add('talking'); btnMic.innerHTML = "🎙️ Konuşuluyor..."; btnMic.style.background = "#4CAF50"; 
+            
+            // PTT (Bas-Konuş) modunda STT'yi tam butona basıldığında çalıştırıyoruz (Telsiz mantığı)
+            if (isMobile && speechRecog && !isRecogRunning) {
+                try { speechRecog.start(); } catch(e){}
+            }
         }
         function stopTalking() { 
             if(!isPttMode || !micStream || !isTalking) return; 
             isTalking = false; 
             micStream.getAudioTracks().forEach(t => t.enabled = false); 
             pttBtnMobile.classList.remove('talking'); btnMic.innerHTML = "🛑 Bas-Konuş"; btnMic.style.background = "#e50914"; 
+            
+            if (isMobile && speechRecog && isRecogRunning) {
+                try { speechRecog.stop(); } catch(e){}
+            }
         }
         
         window.addEventListener('keydown', (e) => { if (e.code === 'Space' && e.target.tagName !== 'INPUT' && isPttMode && micStream) { e.preventDefault(); startTalking(); } });
@@ -1308,6 +1313,7 @@
                     if (isPttMode) {
                         if (isTalking) speaker.element.classList.add('speaking'); else speaker.element.classList.remove('speaking');
                     } else {
+                        // Sürekli açık modda mikrofon aktifse hep parlak kalır
                         speaker.element.classList.add('speaking');
                     }
                 }
@@ -1323,7 +1329,7 @@
             activeAudioElements.forEach(a => a.remove()); activeAudioElements = [];
             
             globalMicEnabled = false; 
-            if(speechRecog && !isMobile) { try { speechRecog.stop(); }catch(e){} }
+            if(speechRecog && isRecogRunning) { try { speechRecog.stop(); }catch(e){} }
 
             document.getElementById('voice-avatars-container').innerHTML = ''; activeSpeakers.clear();
             document.getElementById('live-captions').innerHTML = ''; activeCaptionLines = {};
@@ -1387,16 +1393,16 @@
                 removeVoiceAvatar('local'); localAnalyser = null; 
                 
                 globalMicEnabled = false; 
-                if(speechRecog && !isMobile) { try{speechRecog.stop();}catch(e){} }
+                if(speechRecog && isRecogRunning) { try{speechRecog.stop();}catch(e){} }
 
                 showToast("Mikrofon kapatıldı.", "info");
             } else {
                 try {
-                    // Yankı ve dip ses engelleyici parametreler
+                    // Yankı ve dip ses engelleyici parametreler (Mobil Yankı çözümü için kesin ayarlar)
                     const constraints = { 
                         audio: selectedMicId !== 'default' 
-                               ? { deviceId: { exact: selectedMicId }, echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
-                               : { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+                               ? { deviceId: { exact: selectedMicId }, echoCancellation: true, noiseSuppression: true, autoGainControl: true, sampleRate: 44100 } 
+                               : { echoCancellation: true, noiseSuppression: true, autoGainControl: true, sampleRate: 44100 } 
                     };
                     micStream = await navigator.mediaDevices.getUserMedia(constraints);
                     
@@ -1405,7 +1411,7 @@
                     
                     // 🚀 MOBİL YANKI (ECHO) KESİN ÇÖZÜMÜ:
                     // Mobil Chrome'da Web Audio API (createMediaStreamSource), donanımsal AEC'yi (Yankı Önleyici) iptal eder! 
-                    // Bu yüzden mobilde kesinlikle sesi Web Audio'ya analiz için GÖNDERMİYORUZ.
+                    // Bu yüzden mobilde kesinlikle kendi sesimizi Web Audio'ya analiz için GÖNDERMİYORUZ.
                     if (!isMobile) {
                         if (audioCtx.state === 'suspended') audioCtx.resume();
                         const source = audioCtx.createMediaStreamSource(micStream);
@@ -1419,12 +1425,15 @@
 
                     globalMicEnabled = true; 
                     
-                    // Altyazı gönderimi (BİP'e neden olduğu için mobilde asla tetiklenmez)
-                    if(speechRecog && !isMobile) {
-                        try { 
-                            preventSystemBeep(); 
-                            speechRecog.start(); 
-                        } catch(e){}
+                    // Altyazı gönderimi: Eğer "Bas-Konuş" (PTT) modunda isek ve Mobil isek ŞİMDİ BAŞLATMA (buton beklenir).
+                    // Eğer PTT değilse veya PC isek anında başlat. (Mobil döngü asistanı kırıldığı için burada tek bip çıkar)
+                    if(speechRecog && !isRecogRunning) {
+                        if (!isMobile || !isPttMode) {
+                            try { 
+                                preventSystemBeep(); 
+                                speechRecog.start(); 
+                            } catch(e){}
+                        }
                     }
 
                     const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar };
@@ -1445,7 +1454,7 @@
                 if (isHost && conn) viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); });
             }
             else if (data.type === 'LIVE_CAPTION') { 
-                // 🟢 Mobil veya Masaüstü fark etmeksizin sadece ARAYÜZ (UI) ayarı açıksa okur
+                // 🟢 Sadece arayüzü açık olan altyazıyı okuyabilir! Mobil/Masaüstü ayrımı olmadan herkes bu datayı gönderir ve okur.
                 if (isAiCaptionsEnabled) {
                     displayLiveCaption(data.peerId, data.avatar, data.username, data.text, data.isFinal); 
                 }
