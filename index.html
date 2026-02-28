@@ -126,15 +126,6 @@
 
         #admin-announcement-ui { display: none; position: absolute; top: 15%; left: 50%; transform: translateX(-50%); background: rgba(229, 9, 20, 0.95); padding: 25px 40px; border-radius: 12px; z-index: 99999; color: white; font-size: 2rem; font-weight: 900; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid #fff; pointer-events: none; }
 
-        /* 🔤 SİNEMATİK CANLI ALTYAZI */
-        #live-captions { position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 85; pointer-events: none; width: 90%; max-width: 800px; }
-        .caption-line { background: rgba(0,0,0,0.75); padding: 8px 18px; border-radius: 12px; font-size: 1.15rem; font-weight: 500; text-shadow: 1px 1px 2px #000; border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 10px; animation: slideUpCaption 0.3s ease-out; backdrop-filter: blur(4px); transition: opacity 0.5s ease; text-align: center; }
-        .caption-line .c-avatar { font-size: 1.4rem; }
-        .caption-line .c-name { color: var(--primary); font-weight: 800; margin-right: 5px; }
-        .caption-line .c-text { color: #eee; }
-        .caption-line .c-text.interim { color: #aaa; font-style: italic; }
-        @keyframes slideUpCaption { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
         /* 🍅 MATTER.JS FİZİKSEL EKRAN ETKİLEŞİM ALANI */
         #matter-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 80; }
 
@@ -301,7 +292,6 @@
             #ptt-btn-mobile { bottom: 90px; }
             .reaction-bar { bottom: 10px; padding: 5px 10px; gap: 10px; }
             .reaction-btn { font-size: 1.2rem; }
-            #live-captions { bottom: 60px; }
         }
     </style>
 </head>
@@ -384,19 +374,6 @@
                     <input type="checkbox" id="whisper-mode-toggle" style="width:auto; transform: scale(1.2);">
                     Fısıltı Modu (Sesimi kısık ilet)
                 </label>
-            </div>
-
-            <!-- GÜNCELLENEN ALTYAZI ALANI -->
-            <div class="setting-group">
-                <label>🔤 Sinematik Altyazı (Deneysel)</label>
-                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:5px; color:#fff; text-transform:none;">
-                    <input type="checkbox" id="ai-caption-toggle" style="width:auto; transform: scale(1.2);">
-                    Altyazıları Göster ve Sesimi Çevir
-                </label>
-                <p style="font-size: 0.75rem; color: #aaa; margin-top: 5px; line-height: 1.3;">
-                    Bu özellik açıkken, hoparlörün kapalı olsa bile odadaki kişilerin söylediklerini okuyabilirsin. <br>
-                    <span style="color:#4CAF50; display:inline-block; margin-top:4px;">✅ <b>Mobil Düzeltmesi:</b> Asistanın <i>aralıklı bip</i> sorununu tamamen çözmek adına, mobilde "Sürekli Açık" yerine <b style="color:white;">Bas-Konuş (PTT)</b> kullanırsanız altyazı motorunuz tek bir kısa bip ile senkronize çalışır. Yankı da tamamen giderilmiştir. (Mobil de olsa artık diğer PC'ler sizi altyazıdan okuyabilecek!)</span>
-                </p>
             </div>
 
             <div class="setting-group">
@@ -494,9 +471,6 @@
                 <div class="video-wrapper">
                     <div id="voice-avatars-container"></div>
                     
-                    <!-- 🔤 Sinematik Canlı Altyazı Konteyneri -->
-                    <div id="live-captions"></div>
-
                     <!-- 🍅 Matter.js Fizik Motoru Alanı -->
                     <canvas id="matter-canvas"></canvas>
 
@@ -586,31 +560,24 @@
         // --- GLOBAL MOBİL KONTROLÜ ---
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-        // --- MOBİL İÇİN BİP SESİNİ VE SESSİZLİĞİ ENGELLEYEN AUDIO CONTEXT AÇICI ---
+        // --- SES MOTORUNU SESSİZCE UYANDIRMA (Sistem Bip Sesi Önleyici) ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
-        function preventSystemBeep() {
-            // Sadece masaüstünde çok nadir sorunlar için uyanık tutucu
-            if (isMobile || !audioCtx) return;
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            gain.gain.value = 0; // Ses çıkmasın
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            if(osc.start) osc.start(0);
-            if(osc.stop) osc.stop(audioCtx.currentTime + 0.1);
-        }
-
         const unlockAudio = () => {
             if (audioCtx.state === 'suspended') {
                 audioCtx.resume();
             }
-            preventSystemBeep();
+            // En pürüzsüz yöntem: Sessiz bir boş buffer çalarak ses motorunu uyanık tutuyoruz.
+            // Bu yöntem asla Android/iOS pop veya bip sesi çıkarmaz.
+            const buffer = audioCtx.createBuffer(1, 1, 22050);
+            const source = audioCtx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(audioCtx.destination);
+            if(source.start) source.start(0);
+            
             document.body.removeEventListener('click', unlockAudio);
             document.body.removeEventListener('touchstart', unlockAudio);
         };
-        // Kullanıcının ilk etkileşiminde sistem ses motorunu güvenle uyanık tutuyoruz
         document.body.addEventListener('click', unlockAudio);
         document.body.addEventListener('touchstart', unlockAudio);
 
@@ -875,115 +842,6 @@
             }
         }
 
-        // --- 🔤 SİNEMATİK CANLI ALTYAZI (DÖNGÜ KESİLDİ & PTT EKLENDİ) ---
-        let speechRecog = null;
-        let isAiCaptionsEnabled = false;
-        let activeCaptionLines = {}; 
-        let isRecogRunning = false;
-
-        function initSpeechRecog() {
-            if (!('webkitSpeechRecognition' in window)) return false;
-            if (speechRecog) return true; 
-            
-            speechRecog = new webkitSpeechRecognition();
-            speechRecog.continuous = true;
-            speechRecog.interimResults = true; 
-            speechRecog.lang = 'tr-TR';
-            
-            speechRecog.onstart = () => { isRecogRunning = true; };
-
-            speechRecog.onresult = (e) => {
-                if (isPttMode && !isTalking) return; 
-                
-                let interimTranscript = '';
-                let finalTranscript = '';
-                
-                for (let i = e.resultIndex; i < e.results.length; ++i) {
-                    if (e.results[i].isFinal) finalTranscript += e.results[i][0].transcript;
-                    else interimTranscript += e.results[i][0].transcript;
-                }
-                
-                if (finalTranscript.trim()) {
-                    // Mobil de olsa altyazı odaya fırlatılır, böylece PC'dekiler görebilir!
-                    broadcastCaption(finalTranscript, true);
-                    if (isAiCaptionsEnabled) displayLiveCaption('local', myAvatar, myUsername, finalTranscript, true);
-                } else if (interimTranscript.trim()) {
-                    broadcastCaption(interimTranscript, false);
-                    if (isAiCaptionsEnabled) displayLiveCaption('local', myAvatar, myUsername, interimTranscript, false);
-                }
-            };
-
-            speechRecog.onend = () => {
-                isRecogRunning = false;
-                // 🚀 MOBİL BİP DÖNGÜSÜ KESİN ÇÖZÜMÜ: 
-                // Mobilde asistanı otomatik yeniden başlatmıyoruz. Bu sayede "aralıklı aralıklı gelen Bip" sesini kökten kesiyoruz!
-                if (globalMicEnabled && speechRecog && !isMobile) {
-                    try { 
-                        preventSystemBeep(); 
-                        speechRecog.start(); 
-                    } catch(e){}
-                }
-            };
-            
-            speechRecog.onerror = (e) => {
-                isRecogRunning = false;
-            };
-            return true;
-        }
-        
-        initSpeechRecog();
-
-        // 🟢 SADECE ARAYÜZ (UI) GÖRÜNÜMÜNÜ AÇIP KAPATIR
-        document.getElementById('ai-caption-toggle').addEventListener('change', (e) => {
-            isAiCaptionsEnabled = e.target.checked;
-            if (isAiCaptionsEnabled) {
-                showToast("Sinematik Altyazı Açık. Artık odadaki sesleri okuyabilirsiniz.", "success");
-            } else {
-                showToast("Sinematik Altyazı Kapatıldı.", "info");
-            }
-        });
-
-        function broadcastCaption(text, isFinal) {
-            const capData = { type: 'LIVE_CAPTION', peerId: (peer ? peer.id : 'unknown'), text: text, isFinal: isFinal, avatar: myAvatar, username: myUsername };
-            if (isHost) {
-                viewers.forEach(v => v.conn.send(capData));
-            } else if (hostConnection?.open) {
-                hostConnection.send(capData);
-            }
-        }
-
-        function displayLiveCaption(id, avatar, username, text, isFinal) {
-            if (!isAiCaptionsEnabled) return; // Ayar kapalıysa ekrana hiçbir şey çizdirme
-            
-            const capContainer = document.getElementById('live-captions');
-            let line = activeCaptionLines[id];
-            
-            if (!line) {
-                line = document.createElement('div');
-                line.className = 'caption-line';
-                capContainer.appendChild(line);
-                activeCaptionLines[id] = line;
-                
-                if(capContainer.children.length > 4) {
-                    let oldest = capContainer.firstChild;
-                    if(oldest.dataset.peerId) delete activeCaptionLines[oldest.dataset.peerId];
-                    capContainer.removeChild(oldest);
-                }
-            }
-            
-            line.dataset.peerId = id;
-            line.innerHTML = `<span class="c-avatar">${avatar}</span> <span><span class="c-name">${username}:</span> <span class="c-text ${isFinal ? '' : 'interim'}">${text}</span></span>`;
-            
-            if (isFinal) {
-                delete activeCaptionLines[id];
-                setTimeout(() => {
-                    if (line && line.parentNode) {
-                        line.style.opacity = '0';
-                        setTimeout(() => line.remove(), 500);
-                    }
-                }, 4000); 
-            }
-        }
 
         // --- KİMLİK DOĞRULAMA (AUTH) ---
         onAuthStateChanged(auth, (user) => {
@@ -1234,21 +1092,12 @@
             isTalking = true; 
             micStream.getAudioTracks().forEach(t => t.enabled = true); 
             pttBtnMobile.classList.add('talking'); btnMic.innerHTML = "🎙️ Konuşuluyor..."; btnMic.style.background = "#4CAF50"; 
-            
-            // PTT (Bas-Konuş) modunda STT'yi tam butona basıldığında çalıştırıyoruz (Telsiz mantığı)
-            if (isMobile && speechRecog && !isRecogRunning) {
-                try { speechRecog.start(); } catch(e){}
-            }
         }
         function stopTalking() { 
             if(!isPttMode || !micStream || !isTalking) return; 
             isTalking = false; 
             micStream.getAudioTracks().forEach(t => t.enabled = false); 
             pttBtnMobile.classList.remove('talking'); btnMic.innerHTML = "🛑 Bas-Konuş"; btnMic.style.background = "#e50914"; 
-            
-            if (isMobile && speechRecog && isRecogRunning) {
-                try { speechRecog.stop(); } catch(e){}
-            }
         }
         
         window.addEventListener('keydown', (e) => { if (e.code === 'Space' && e.target.tagName !== 'INPUT' && isPttMode && micStream) { e.preventDefault(); startTalking(); } });
@@ -1329,10 +1178,8 @@
             activeAudioElements.forEach(a => a.remove()); activeAudioElements = [];
             
             globalMicEnabled = false; 
-            if(speechRecog && isRecogRunning) { try { speechRecog.stop(); }catch(e){} }
 
             document.getElementById('voice-avatars-container').innerHTML = ''; activeSpeakers.clear();
-            document.getElementById('live-captions').innerHTML = ''; activeCaptionLines = {};
             document.querySelectorAll('.face-cam-bubble').forEach(e => e.remove()); window.toggleLobbyMusic(false);
             Composite.clear(physicsEngine.world); Composite.add(physicsEngine.world, physicsWalls); 
 
@@ -1393,7 +1240,6 @@
                 removeVoiceAvatar('local'); localAnalyser = null; 
                 
                 globalMicEnabled = false; 
-                if(speechRecog && isRecogRunning) { try{speechRecog.stop();}catch(e){} }
 
                 showToast("Mikrofon kapatıldı.", "info");
             } else {
@@ -1424,17 +1270,6 @@
                     showToast("Sese bağlanıldı!", "success");
 
                     globalMicEnabled = true; 
-                    
-                    // Altyazı gönderimi: Eğer "Bas-Konuş" (PTT) modunda isek ve Mobil isek ŞİMDİ BAŞLATMA (buton beklenir).
-                    // Eğer PTT değilse veya PC isek anında başlat. (Mobil döngü asistanı kırıldığı için burada tek bip çıkar)
-                    if(speechRecog && !isRecogRunning) {
-                        if (!isMobile || !isPttMode) {
-                            try { 
-                                preventSystemBeep(); 
-                                speechRecog.start(); 
-                            } catch(e){}
-                        }
-                    }
 
                     const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar };
                     if (isHost) { viewers.forEach((v, pId) => { const call = peer.call(pId, micStream, { metadata: voiceMeta }); activeVoiceCalls.set(pId, call); }); } 
@@ -1452,13 +1287,6 @@
                 const dropY = data.yRatio * matterCanvas.height;
                 spawnPhysicsEmoji(data.emoji, dropX, dropY, data.vx, data.vy, false);
                 if (isHost && conn) viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); });
-            }
-            else if (data.type === 'LIVE_CAPTION') { 
-                // 🟢 Sadece arayüzü açık olan altyazıyı okuyabilir! Mobil/Masaüstü ayrımı olmadan herkes bu datayı gönderir ve okur.
-                if (isAiCaptionsEnabled) {
-                    displayLiveCaption(data.peerId, data.avatar, data.username, data.text, data.isFinal); 
-                }
-                if (isHost && conn) viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); }); 
             }
             else if (data.type === 'CLEAR_CHAT') { chatMessages.innerHTML = ''; showToast("Sohbet temizlendi.", "info"); }
             else if (data.type === 'KICK') { showToast("Odadan atıldınız!", "error"); setTimeout(showWrappedAndDisconnect, 1000); }
