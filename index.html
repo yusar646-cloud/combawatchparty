@@ -133,7 +133,7 @@
         .v-avatar.speaking { border-color: #4CAF50; box-shadow: 0 0 15px rgba(76, 175, 80, 0.9); transform: translateY(-5px) scale(1.1); }
         .v-avatar .v-name { position: absolute; bottom: -20px; font-size: 0.7rem; background: rgba(0,0,0,0.8); color: white; padding: 2px 6px; border-radius: 4px; white-space: nowrap; font-weight: bold; border: 1px solid #444; }
 
-        /* YÜZEN REAKSİYON KAMERALARI (YENİLENDİ: BOYUTLANDIRILABİLİR & SÜRÜKLENEBİLİR) */
+        /* YÜZEN REAKSİYON KAMERALARI */
         .face-cam-bubble { position: absolute; top: 20px; right: 20px; width: 140px; height: 140px; min-width: 80px; min-height: 80px; max-width: 400px; max-height: 400px; border-radius: 15px; border: 3px solid var(--primary); overflow: hidden; box-shadow: 0 5px 20px rgba(0,0,0,0.8); z-index: 1000; cursor: grab; background: #000; transition: border-color 0.2s ease-out; resize: both; }
         .face-cam-bubble:active { cursor: grabbing; border-color: #4CAF50; }
         .face-cam-bubble video { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
@@ -562,7 +562,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getDatabase, ref, set, get, remove, serverTimestamp, push, onValue, onChildAdded, onChildRemoved } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+        import { getDatabase, ref, set, get, remove, serverTimestamp, push, onValue, onChildAdded, onChildRemoved, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAUh4qKPlNo7K9j6VtKVUHrp8PwaBpa7WE",
@@ -623,7 +623,7 @@
         let localAnalyser = null;
         let zenTimer = null;
         
-        // Ses İşleyici Global Değişken (Bağlantı esnasında efekti sabit tutar)
+        // Ses İşleyici Global Değişken
         let currentProcessedStream = null;
 
         function wakeUpZen() {
@@ -679,7 +679,6 @@
         }
 
         function applyVoiceEffect(rawStream) {
-            // YANKI ÇÖZÜMÜ: Mobilde kesinlikle WebAudio işlemine sokma, native cihaz yankı iptali devrede kalsın
             if (isMobile || currentVoiceEffect === 'none') return rawStream;
 
             if (audioCtxProcessing) {
@@ -727,7 +726,7 @@
             return dest.stream;
         }
 
-        // Özel Avatar Formatlama (Güncellendi: UID sınıfı atayarak anlık güncellemeyi kolaylaştırdık)
+        // Özel Avatar Formatlama 
         function renderAvatarHtml(avatarData, uid = '') {
             if(avatarData && avatarData.startsWith('data:image')) {
                 return `<img src="${avatarData}" class="avatar-uid-${uid}" data-uid="${uid}">`;
@@ -746,11 +745,6 @@
                     else el.outerHTML = `<span class="avatar-uid-${uid}" data-uid="${uid}">${newAvatarHtml}</span>`;
                 }
             });
-            // Ayrıca Modal ve Admin panellerini doğrudan tetikle
-            if(document.getElementById('ua-avatar') && selectedActionPeerId) {
-                // Sadece açık olan modal bu kişiyse
-                // ID eşleşmesini kontrol etmek biraz zor ama DOM ile güncellenmiş olmalı
-            }
         }
 
         // --- BİREYSEL KULLANICI MODALI ---
@@ -912,7 +906,6 @@
             el.addEventListener('touchstart', dragTouchStart, {passive: false});
 
             function isResizeHandle(e) {
-                // Sağ alt köşeye basıldıysa sürüklemeyi iptal et ki boyutlandırılabilsin
                 const rect = el.getBoundingClientRect();
                 const isRight = (e.clientX || (e.touches && e.touches[0].clientX)) > rect.right - 20;
                 const isBottom = (e.clientY || (e.touches && e.touches[0].clientY)) > rect.bottom - 20;
@@ -952,10 +945,8 @@
             myAvatar = newAvatar;
             if(auth.currentUser) set(ref(database, 'users/' + auth.currentUser.uid + '/avatar'), myAvatar);
             
-            // Tüm sayfadaki avatarlarımı güncelle
             updateAvatarsInUI(myUid, myAvatar);
 
-            // Yayındakilere bildir
             if (peer && !peer.destroyed) {
                 broadcastData({ type: 'AVATAR_UPDATE', peerId: peer.id, uid: myUid, avatar: myAvatar });
             }
@@ -1170,7 +1161,7 @@
                 document.getElementById('support-admin-view').style.display = isAdmin ? 'block' : 'none';
 
                 showToast(`Hoş geldin, ${myUsername}!`, 'success');
-                loadInboxAndSupport(); // Login olduğunda dinlemeyi başlat
+                loadInboxAndSupport();
             } else {
                 document.getElementById('auth-card').style.display = 'block';
                 document.getElementById('room-controls').style.display = 'none';
@@ -1197,7 +1188,6 @@
         function loadInboxAndSupport() {
             if(!auth.currentUser) return;
 
-            // Gelen Kutusu (Mesajlar / Davetler) Dinleyici
             onValue(ref(database, 'inbox/' + myUid), (snapshot) => {
                 const list = document.getElementById('inbox-list'); list.innerHTML = '';
                 let currentCount = 0;
@@ -1212,12 +1202,10 @@
                     });
                 } else { list.innerHTML = '<p style="color:#888;">Gelen kutun boş.</p>'; }
                 
-                // Bildirim Kontrolü
                 if (currentCount > lastInboxCount && lastInboxCount !== 0) triggerNotificationUI();
                 lastInboxCount = currentCount;
             });
 
-            // Arkadaşlık İstekleri Dinleyici
             onValue(ref(database, 'users/' + myUid + '/friend_requests'), (snapshot) => {
                 const rList = document.getElementById('friend-requests-list'); rList.innerHTML = '';
                 let reqCount = 0;
@@ -1235,18 +1223,15 @@
                     });
                 } else { rList.innerHTML = '<p style="color:#888;">Bekleyen istek yok.</p>'; }
 
-                // Bildirim Kontrolü
                 if (reqCount > lastRequestsCount && lastRequestsCount !== 0) triggerNotificationUI();
                 lastRequestsCount = reqCount;
             });
 
-            // Onaylanmış Arkadaşlarım Listesi Dinleyici
             onValue(ref(database, 'users/' + myUid + '/friends'), (snapshot) => {
                 const flist = document.getElementById('friends-list'); flist.innerHTML = '';
                 if (snapshot.exists()) {
                     snapshot.forEach(child => {
                         const fId = child.key; const fData = child.val();
-                        // Eski sistemde fData sadece isimdi, şimdi obje yapıyoruz. Geri dönük uyumluluk:
                         const fName = typeof fData === 'string' ? fData : fData.name;
                         const fAvatar = typeof fData === 'string' ? '👤' : (fData.avatar || '👤');
                         
@@ -1258,7 +1243,6 @@
                 } else { flist.innerHTML = '<p style="color:#888;">Henüz ekli arkadaşınız yok.</p>'; }
             });
 
-            // Destek Biletleri Dinleyici
             onValue(ref(database, 'support_tickets'), (snapshot) => {
                 const myTicketsList = document.getElementById('my-tickets-list'); myTicketsList.innerHTML = '';
                 const adminList = document.getElementById('admin-tickets-list'); adminList.innerHTML = '';
@@ -1283,7 +1267,7 @@
         }
 
         function triggerNotificationUI() {
-            document.getElementById('notif-audio').play().catch(()=>{}); // Kullanıcı etkileşimi yoksa çalmayabilir
+            document.getElementById('notif-audio').play().catch(()=>{}); 
             document.getElementById('btn-open-inbox').classList.add('has-notification');
             document.getElementById('btn-inbox-ingame').classList.add('has-notification');
         }
@@ -1314,17 +1298,14 @@
 
         window.addFriend = function(targetUid, targetName) {
             if(!auth.currentUser) return showToast("Giriş yapmalısınız", "error");
-            // Doğrudan eklemek yerine istek yolla
             set(ref(database, `users/${targetUid}/friend_requests/${myUid}`), { name: myUsername, avatar: myAvatar });
             showToast(`${targetName} kişisine arkadaşlık isteği gönderildi!`, "success");
             document.getElementById('user-action-modal').classList.remove('active');
         };
 
         window.acceptFriend = function(reqUid, reqName, reqAvatar) {
-            // İki tarafın da listesine ekle
             set(ref(database, `users/${myUid}/friends/${reqUid}`), { name: reqName, avatar: reqAvatar || '👤' });
             set(ref(database, `users/${reqUid}/friends/${myUid}`), { name: myUsername, avatar: myAvatar });
-            // İsteği sil
             remove(ref(database, `users/${myUid}/friend_requests/${reqUid}`));
             showToast("Arkadaşlık isteği kabul edildi!", "success");
         };
@@ -1383,7 +1364,7 @@
             document.querySelector('.video-wrapper').appendChild(div);
             div.querySelector('video').srcObject = stream; 
             
-            makeDraggable(div); // Sürüklenebilirlik ve yeniden boyutlandırma devrede
+            makeDraggable(div); 
             
             div.style.top = (40 + Math.random() * 40) + 'px'; div.style.left = (40 + Math.random() * 100) + 'px';
         }
@@ -1594,14 +1575,17 @@
         requestAnimationFrame(checkAudioLevels);
 
         function executeDisconnect() {
-            if (isHost && roomCode) { remove(ref(database, 'rooms/' + roomCode)); }
+            if (isHost && roomCode) { 
+                const roomRef = ref(database, 'rooms/' + roomCode);
+                try { onDisconnect(roomRef).cancel(); } catch(e){} // Kasıtlı çıkış yaparken onDisconnect iptal et ve kendimiz silelim.
+                remove(roomRef); 
+            }
             if (myStream) myStream.getTracks().forEach(t => t.stop()); if (micStream) micStream.getTracks().forEach(t => t.stop()); if(faceCamStream) faceCamStream.getTracks().forEach(t=>t.stop());
             if (peer) peer.destroy(); viewers.clear(); activeVoiceCalls.clear();
             activeAudioElements.forEach(a => a.remove()); activeAudioElements = [];
             
             globalMicEnabled = false; 
 
-            // Ses motorunu sıfırla
             if (audioCtxProcessing) { audioCtxProcessing.close(); audioCtxProcessing = null; }
             currentProcessedStream = null;
 
@@ -1677,7 +1661,6 @@
                 showToast("Mikrofon kapatıldı.", "info");
             } else {
                 try {
-                    // Yankı engellemeyi zorunlu kılan native konfigürasyon (Google Chrome ve mobil dahil)
                     const constraints = { 
                         audio: selectedMicId !== 'default' 
                                ? { deviceId: { exact: selectedMicId }, echoCancellation: true, noiseSuppression: true, autoGainControl: true, googEchoCancellation: true, googNoiseSuppression: true, googHighpassFilter: true } 
@@ -1712,11 +1695,9 @@
                         }); 
                     } 
                     else { 
-                        // YAYINCIYA BAĞLAN
                         const callHost = peer.call(hostId, currentProcessedStream, { metadata: voiceMeta }); 
                         activeVoiceCalls.set(hostId, callHost); 
                         
-                        // DİĞER İZLEYİCİLERE (FULL MESH P2P BAĞLANTI) BAĞLAN
                         otherPeers.forEach(pId => {
                             const callPeer = peer.call(pId, currentProcessedStream, { metadata: voiceMeta });
                             activeVoiceCalls.set(pId, callPeer);
@@ -1755,13 +1736,11 @@
                 const newPeers = data.peers.filter(p => !otherPeers.includes(p));
                 otherPeers = data.peers; 
                 
-                // Odaya yeni giren kişilere var olan kameraları yolla
                 if (faceCamStream && !isHost) {
                     const camMeta = { type: 'facecam', username: myUsername, uid: myUid };
                     newPeers.forEach(pId => { myFaceCamCalls.push(peer.call(pId, faceCamStream, { metadata: camMeta })); });
                 }
 
-                // Odaya yeni giren kişilere var olan mikrofonu (varsa efektif sesi) yolla
                 if (globalMicEnabled && currentProcessedStream && !isHost) {
                     const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid };
                     newPeers.forEach(pId => {
@@ -1821,9 +1800,21 @@
             });
         }
 
+        // --- GÜNCELLEME 2: AYNI ODADA 2 YAYINCIYI ve YENİDEN ÜZERİNE YAZMAYI ENGELLEME ---
         window.startHostingProcess = async function(mode) {
             roomCode = document.getElementById('room-input').value.trim(); myUsername = document.getElementById('username-input').value.trim() || "Yayıncı";
             if(!roomCode) return showToast("Lütfen Oda Kodu girin!", "error");
+
+            // ODA KODU ÇAKILIŞMA KONTROLÜ
+            try {
+                const roomSnap = await get(ref(database, 'rooms/' + roomCode));
+                if (roomSnap.exists()) {
+                    return showToast("⚠️ Bu oda kodu zaten kullanımda! Lütfen başka bir kod deneyin.", "error");
+                }
+            } catch(e) {
+                console.error("Oda kontrol hatası:", e);
+                return showToast("Bağlantı hatası, odayı kontrol edemiyoruz.", "error");
+            }
 
             isHost = true; document.getElementById('admin-panel').style.display = 'block'; 
 
@@ -1850,7 +1841,13 @@
             peer = new Peer(); 
             peer.on('open', (id) => { 
                 hostId = id;
-                set(ref(database, 'rooms/' + roomCode), { hostId: hostId, hostName: myUsername, createdAt: serverTimestamp() });
+                const roomRef = ref(database, 'rooms/' + roomCode);
+                set(roomRef, { hostId: hostId, hostName: myUsername, createdAt: serverTimestamp() }).then(() => {
+                    // --- GÜNCELLEME 1: HAYALET ODALARI (GHOST ROOMS) ENGELLEME ---
+                    // Yayıncı sekmeyi kapattığında Firebase bu odayı otomatik olarak siler.
+                    onDisconnect(roomRef).remove(); 
+                });
+                
                 statusText.innerText = "Yayın Aktif!"; switchScreen(roomCode, "Yayıncı"); showToast("Oda başarıyla kuruldu.", "success"); 
                 window.applyTheme(currentTheme); 
             });
@@ -1888,7 +1885,14 @@
                 peer = new Peer(); 
                 peer.on('open', () => { statusText.innerText = "Yayıncı aranıyor..."; window.connectToNewHost(hostId); });
                 setupPeerListeners();
-                peer.on('error', err => { if (err.type === 'peer-unavailable') { showToast("Yayıncıya ulaşılamıyor!", "error"); setTimeout(executeDisconnect, 2000); } });
+                
+                // --- İZLEYİCİ ATILMA MESAJI GÜNCELLEMESİ ---
+                peer.on('error', err => { 
+                    if (err.type === 'peer-unavailable') { 
+                        showToast("Yayıncıya ulaşılamıyor (Oda kapanmış olabilir)!", "error"); 
+                        setTimeout(executeDisconnect, 2500); 
+                    } 
+                });
                 
             }).catch(error => {
                 console.error("Firebase/Kod Hatası:", error);
@@ -1921,6 +1925,9 @@
             isHost = true; document.getElementById('admin-panel').style.display = 'block';
             if (hostConnection) hostConnection.close(); showToast("Yayıncı yetkisi size geçti! Lütfen yayını başlatın.", "success");
             
+            const roomRef = ref(database, 'rooms/' + roomCode);
+            onDisconnect(roomRef).remove(); // Yeni host tabı kapatırsa koruma devrede
+
             if (mode === 'screen') {
                 try { myStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true }); } catch (err) { try { myStream = await navigator.mediaDevices.getDisplayMedia({ video: true }); } catch (err2) { return showToast("Ekran paylaşım izni verilmedi!", "error"); } }
                 videoElement.srcObject = myStream; videoElement.muted = true; 
@@ -1934,7 +1941,11 @@
         window.transferHost = function(targetPeerId) {
             const t = viewers.get(targetPeerId);
             if(t && confirm(`${t.username} adlı kullanıcıyı yeni Yayıncı yapmak istiyor musunuz?`)) {
-                set(ref(database, 'rooms/' + roomCode), { hostId: targetPeerId, hostName: t.username, createdAt: serverTimestamp() }).then(() => {
+                
+                const roomRef = ref(database, 'rooms/' + roomCode);
+                onDisconnect(roomRef).cancel(); // Eski host gidiyor, odanın silinmesi komutunu iptal et!
+
+                set(roomRef, { hostId: targetPeerId, hostName: t.username, createdAt: serverTimestamp() }).then(() => {
                     broadcastData({ type: 'HOST_TRANSFER', newHostId: targetPeerId });
                     isHost = false; document.getElementById('admin-panel').style.display = 'none';
                     if (myStream) myStream.getTracks().forEach(track => track.stop()); myStream = null;
