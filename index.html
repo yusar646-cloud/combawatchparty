@@ -404,6 +404,7 @@
         </div>
     </div>
 
+    <!-- 🌟 LOGIN VE BAŞLANGIÇ EKRANI (TEK VE TEMİZ YAPIDA) -->
     <div id="login-screen" class="screen active">
         <div class="card" id="auth-card">
             <h1>🍿 Comba Watch Party</h1>
@@ -435,7 +436,6 @@
             
             <button id="btn-open-login-settings" class="extra-btn" style="border:none;">⚙️ Profilini Ayarla</button>
             
-            <!-- GÜNCELLENEN HOST BUTONLARI -->
             <div class="btn-group" style="flex-direction: column;">
                 <div style="display: flex; gap: 10px;">
                     <button id="btn-host-screen" style="flex:1; border:none; border-radius:8px; padding:14px; font-weight:bold; cursor:pointer;">💻 Ekran Paylaş</button>
@@ -447,6 +447,7 @@
         </div>
     </div>
 
+    <!-- 🌟 ANA VİDEO VE ODA EKRANI -->
     <div id="video-screen" class="screen">
         <button id="btn-cinema-exit">❌ Sinemadan Çık</button>
         <div class="main-container" id="main-ui-container">
@@ -568,7 +569,7 @@
         // --- GLOBAL MOBİL KONTROLÜ ---
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-        // --- SES MOTORUNU SESSİZCE UYANDIRMA (Sistem Bip Sesi Önleyici) ---
+        // --- SES MOTORUNU SESSİZCE UYANDIRMA ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
         const unlockAudio = () => {
@@ -647,7 +648,6 @@
         }
 
         function applyVoiceEffect(rawStream) {
-            // Mobilde çalışmasın ve Efekt seçilmediyse doğrudan ham sesi döndürsün
             if (isMobile || currentVoiceEffect === 'none') return rawStream;
 
             if (!audioCtxProcessing) {
@@ -700,7 +700,7 @@
 
         // --- BİREYSEL KULLANICI MODALI ---
         let selectedActionPeerId = null;
-        function openUserActionModal(pId, pName, pAvatar, pUid) {
+        window.openUserActionModal = function(pId, pName, pAvatar, pUid) {
             selectedActionPeerId = pId;
             document.getElementById('ua-avatar').innerHTML = renderAvatarHtml(pAvatar);
             document.getElementById('ua-name').innerText = pName;
@@ -714,7 +714,7 @@
                 btnFriend.style.display = 'none';
             } else {
                 btnFriend.style.display = 'block';
-                btnFriend.onclick = () => { addFriend(pUid, pName); };
+                btnFriend.onclick = () => { window.addFriend(pUid, pName); };
             }
             
             document.getElementById('user-action-modal').classList.add('active');
@@ -724,7 +724,6 @@
             if(!selectedActionPeerId) return;
             const vol = e.target.value / 100;
             peerVolumes[selectedActionPeerId] = vol;
-            // O kişinin audiosunu bul ve güncelle
             const targetAudio = activeAudioElements.find(a => a.dataset.peerId === selectedActionPeerId);
             if(targetAudio) targetAudio.volume = vol;
         });
@@ -738,7 +737,7 @@
         });
 
         // --- SENKRONİZE MEDYA OYNATICI (YouTube & MP4) ---
-        function onYouTubeIframeAPIReady() {
+        window.onYouTubeIframeAPIReady = function() {
             ytPlayer = new YT.Player('yt-player', {
                 height: '100%', width: '100%',
                 playerVars: { 'playsinline': 1, 'controls': isHost ? 1 : 0, 'rel': 0 },
@@ -756,7 +755,6 @@
             else if (event.data == YT.PlayerState.PAUSED) broadcastData({ type: 'SYNC_MEDIA', action: 'pause', time: time });
         }
         
-        // Host pozisyon gönderici döngü
         setInterval(() => {
             if(isHost && syncActive) {
                 let time = 0;
@@ -774,7 +772,6 @@
             document.getElementById('sync-media-modal').classList.remove('active');
             document.getElementById('btn-stop-sync').style.display = 'block';
             
-            // Ekran paylaşımını durdur (Eğer açıksa)
             if(myStream) { myStream.getVideoTracks().forEach(t => t.stop()); }
             
             broadcastData({ type: 'SYNC_MEDIA_START', url: url });
@@ -797,7 +794,6 @@
             document.getElementById('yt-player').style.display = 'none';
             syncVideo.style.display = 'none';
 
-            // Check if YouTube
             const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))((\w|-){11})/);
             
             if (ytMatch && ytMatch[1]) {
@@ -806,14 +802,12 @@
                 if(ytPlayer && ytPlayer.loadVideoById) {
                     ytPlayer.loadVideoById(vidId);
                 } else {
-                    // API henüz yüklenmediyse bekle
                     setTimeout(() => handleSyncMediaStart(url, amIHost), 1000); 
                 }
             } else {
-                // Standart Video (MP4, m3u8 vb)
                 syncVideo.style.display = 'block';
                 syncVideo.src = url;
-                syncVideo.controls = amIHost; // İzleyiciler tıklayamaz
+                syncVideo.controls = amIHost;
                 syncVideo.play().catch(e=> playOverlay.style.display='flex');
                 
                 if (amIHost) {
@@ -859,7 +853,6 @@
 
 
         // --- DİĞER FONKSİYONLAR ---
-        // Özel Avatar Yükleme
         document.getElementById('custom-avatar-upload').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -868,7 +861,7 @@
                 const img = new Image();
                 img.onload = function() {
                     const canvas = document.createElement('canvas');
-                    canvas.width = 128; canvas.height = 128; // Boyutu küçük tut
+                    canvas.width = 128; canvas.height = 128; 
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, 128, 128);
                     
@@ -881,7 +874,6 @@
                     customOpt.innerHTML = `<img src="${base64Data}">`;
                     document.getElementById('avatar-selector-container').appendChild(customOpt);
                     
-                    // Firebase Profile Kaydet
                     if(auth.currentUser) set(ref(database, 'users/' + auth.currentUser.uid + '/avatar'), myAvatar);
                     
                     showToast("Özel avatarınız yüklendi ve kaydedildi!", "success");
@@ -891,12 +883,10 @@
             reader.readAsDataURL(file);
         });
 
-        // 📱 Mobil Menü
         document.getElementById('btn-mobile-menu').addEventListener('click', () => {
             document.getElementById('collapsible-controls').classList.toggle('open');
         });
 
-        // 🛠️ Sezgisel Düzen
         const resizer = document.getElementById('main-resizer');
         const sidebar = document.querySelector('.sidebar');
         const sidebarHeader = document.getElementById('sidebar-header');
@@ -1046,7 +1036,6 @@
                 myUsername = user.displayName || user.email.split('@')[0];
                 isAdmin = (user.email === 'yusar646@gmail.com');
                 
-                // Profil resmini çek (Özel Avatar varsa)
                 get(ref(database, 'users/' + myUid + '/avatar')).then(snap => {
                     if (snap.exists() && snap.val()) {
                         myAvatar = snap.val();
@@ -1091,7 +1080,6 @@
         function loadInboxAndSupport() {
             if(!auth.currentUser) return;
 
-            // Gelen Kutusu
             onValue(ref(database, 'inbox/' + myUid), (snapshot) => {
                 const list = document.getElementById('inbox-list'); list.innerHTML = '';
                 if(snapshot.exists()) {
@@ -1105,7 +1093,6 @@
                 } else { list.innerHTML = '<p style="color:#888;">Gelen kutun boş.</p>'; }
             });
 
-            // Arkadaşlar Sekmesi
             onValue(ref(database, 'users/' + myUid + '/friends'), (snapshot) => {
                 const flist = document.getElementById('friends-list'); flist.innerHTML = '';
                 if (snapshot.exists()) {
@@ -1272,7 +1259,6 @@
             addChatMessage("Sistem", "📢", `DUYURU: ${msg}`, false); setTimeout(() => { el.style.display = 'none'; el.style.animation = ''; }, 6000); 
         };
 
-        // --- AYARLAR MODALI ---
         const settingsModal = document.getElementById('settings-modal');
         let selectedMicId = 'default', selectedSpeakerId = 'default';
         let isPttMode = false, isWhisperMode = false, isTalking = false;
@@ -1399,7 +1385,7 @@
             if (sender === "Sistem") { 
                 div.innerHTML = `${avatarHtml} ${text}`; 
             } else { 
-                div.innerHTML = `<div class="sender-info" onclick="openUserActionModal('${pId}', '${sender}', '${avatar}', '${uid}')"><span class="msg-avatar">${avatarHtml}</span> ${sender}</div><div class="msg-text">${text}</div>`; 
+                div.innerHTML = `<div class="sender-info" onclick="window.openUserActionModal('${pId}', '${sender}', '${avatar}', '${uid}')"><span class="msg-avatar">${avatarHtml}</span> ${sender}</div><div class="msg-text">${text}</div>`; 
             }
             
             chatMessages.appendChild(div); chatMessages.scrollTop = chatMessages.scrollHeight; 
@@ -1411,7 +1397,7 @@
             if(document.getElementById('v-avatar-'+id)) return document.getElementById('v-avatar-'+id);
             const el = document.createElement('div'); el.className = 'v-avatar'; el.id = 'v-avatar-' + id;
             el.innerHTML = `${renderAvatarHtml(avatar)} <div class="v-name">${name}</div>`;
-            el.onclick = () => openUserActionModal(id, name, avatar, uid);
+            el.onclick = () => window.openUserActionModal(id, name, avatar, uid);
             document.getElementById('voice-avatars-container').appendChild(el); return el;
         }
         function removeVoiceAvatar(id) { const el = document.getElementById('v-avatar-'+id); if(el) el.remove(); activeSpeakers.delete(id); }
@@ -1482,13 +1468,12 @@
                 audio.autoplay = true; 
                 audio.playsInline = true; 
                 audio.muted = isSpeakerMuted; 
-                audio.dataset.peerId = call.peer; // Bireysel ses ayarı için kimlik
+                audio.dataset.peerId = call.peer;
                 
                 const isWhisper = call.metadata?.whisper; audio.dataset.whisper = isWhisper ? 'true' : 'false';
                 
                 if(typeof audio.setSinkId !== 'undefined' && selectedSpeakerId !== 'default') audio.setSinkId(selectedSpeakerId).catch(()=>{});
                 
-                // Bireysel Ses Hesaplaması
                 const baseVol = document.getElementById('mix-chat-vol').value / 100; 
                 const pVol = peerVolumes[call.peer] !== undefined ? peerVolumes[call.peer] : 1;
                 audio.volume = (isWhisper ? baseVol * 0.3 : baseVol) * pVol;
@@ -1576,7 +1561,7 @@
         function setupPeerListeners() {
             peer.on('call', call => {
                 if (call.metadata?.type === 'screen') {
-                    call.answer(); call.on('stream', rStream => { videoElement.srcObject = rStream; statusText.innerText = "Bağlı"; videoElement.onloadedmetadata = () => videoElement.play().catch(() => playOverlay.style.display = 'flex'); });
+                    call.answer(); call.on('stream', rStream => { videoElement.srcObject = rStream; statusText.innerText = "Bağlı"; videoElement.onloadedmetadata = () => { videoElement.play().catch(() => playOverlay.style.display = 'flex'); }; });
                 } else if (call.metadata?.type === 'voice') { handleIncomingVoice(call); }
                 else if (call.metadata?.type === 'facecam') {
                     call.answer(); call.on('stream', s => { createFaceCamUI(call.peer, call.metadata.username, s, false); });
@@ -1594,7 +1579,6 @@
                     if(currentTheme !== 'default') conn.send({ type: 'THEME', theme: currentTheme });
                     if(isLobbyMusicPlaying) conn.send({ type: 'LOBBY_MUSIC', state: true });
                     
-                    // Medya senkronu varsa yeni gelene bildir
                     if(syncActive) {
                         const ytUrl = ytPlayer && ytPlayer.getVideoUrl ? ytPlayer.getVideoUrl() : null;
                         const vUrl = syncVideo.src;
@@ -1619,7 +1603,7 @@
             });
         }
 
-        window.startHostingProcess = async (mode) => {
+        window.startHostingProcess = async function(mode) {
             roomCode = document.getElementById('room-input').value.trim(); myUsername = document.getElementById('username-input').value.trim() || "Yayıncı";
             if(!roomCode) return showToast("Lütfen Oda Kodu girin!", "error");
 
@@ -1655,8 +1639,8 @@
             setupPeerListeners();
         };
 
-        document.getElementById('btn-host-screen').addEventListener('click', () => startHostingProcess('screen'));
-        document.getElementById('btn-host-sync-menu').addEventListener('click', () => startHostingProcess('sync'));
+        document.getElementById('btn-host-screen').addEventListener('click', () => window.startHostingProcess('screen'));
+        document.getElementById('btn-host-sync-menu').addEventListener('click', () => window.startHostingProcess('sync'));
 
         window.connectToNewHost = function(targetHostId) {
             statusText.innerText = "Bağlanıyor..."; if (hostConnection) hostConnection.close();
