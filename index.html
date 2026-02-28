@@ -404,7 +404,10 @@
         </div>
     </div>
 
-    <!-- 🌟 LOGIN VE BAŞLANGIÇ EKRANI (TEK VE TEMİZ YAPIDA) -->
+    <!-- PTT BUTONU -->
+    <div id="ptt-btn-mobile" title="Konuşmak için basılı tut">🎙️</div>
+
+    <!-- 🌟 LOGIN VE BAŞLANGIÇ EKRANI -->
     <div id="login-screen" class="screen active">
         <div class="card" id="auth-card">
             <h1>🍿 Comba Watch Party</h1>
@@ -605,14 +608,12 @@
         let isAdmin = false, myUid = "anon_" + Date.now();
         let globalMicEnabled = false; 
 
-        // Bireysel Ses ve Profil Haritaları
+        // Bireysel Ses Haritaları
         let peerVolumes = {}; 
-        let peerProfiles = {}; 
 
         // Senkronize Medya Oynatıcı 
         let ytPlayer = null;
         let syncActive = false;
-        let isSyncHostControl = false;
 
         const videoElement = document.getElementById('main-video');
         const syncMediaContainer = document.getElementById('sync-media-container');
@@ -788,7 +789,6 @@
 
         function handleSyncMediaStart(url, amIHost) {
             syncActive = true;
-            isSyncHostControl = amIHost;
             videoElement.style.display = 'none';
             syncMediaContainer.style.display = 'block';
             document.getElementById('yt-player').style.display = 'none';
@@ -850,7 +850,6 @@
                 }
             }
         }
-
 
         // --- DİĞER FONKSİYONLAR ---
         document.getElementById('custom-avatar-upload').addEventListener('change', function(e) {
@@ -953,7 +952,6 @@
         btnCloseFloatingMobile.addEventListener('click', (e) => { e.stopPropagation(); document.body.classList.add('chat-floating-minimized'); });
         mobileBubbleBtn.addEventListener('click', () => { document.body.classList.remove('chat-floating-minimized'); });
 
-
         // --- 🍅 MATTER.JS FİZİKSEL EKRAN ---
         const Engine = Matter.Engine, Render = Matter.Render, Runner = Matter.Runner, Bodies = Matter.Bodies, Composite = Matter.Composite, Events = Matter.Events;
         const physicsEngine = Engine.create();
@@ -1028,7 +1026,6 @@
             }
         }
 
-
         // --- KİMLİK DOĞRULAMA (AUTH) ---
         onAuthStateChanged(auth, (user) => {
             if (user) {
@@ -1100,7 +1097,7 @@
                         const fId = child.key; const fName = child.val();
                         flist.innerHTML += `<div class="ticket-item">
                             <span>🤝 ${fName}</span>
-                            <button class="friend-btn" onclick="inviteFriend('${fId}', '${fName}')">Odaya Davet Et</button>
+                            <button class="friend-btn" onclick="window.inviteFriend('${fId}', '${fName}')">Odaya Davet Et</button>
                         </div>`;
                     });
                 } else { flist.innerHTML = '<p style="color:#888;">Henüz ekli arkadaşınız yok. Sohbette kişilerin üzerine tıklayarak ekleyebilirsiniz.</p>'; }
