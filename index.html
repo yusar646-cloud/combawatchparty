@@ -92,7 +92,7 @@
         body:not(.theme-derbi) #btn-host-screen { color: white; }
         #btn-host-sync-menu { background: #E53935; color: white; } #btn-host-sync-menu:hover { background: #D32F2F; }
         #btn-viewer { background: #2196F3; } #btn-viewer:hover { background: #1976D2; }
-        .extra-btn { background: #333; width: 100%; margin-top: 10px; display:flex; justify-content:center; align-items:center; gap:5px; }
+        .extra-btn { background: #333; width: 100%; margin-top: 10px; display:flex; justify-content:center; align-items:center; gap:5px; border:none; cursor:pointer; font-weight:bold; padding:12px; border-radius:6px; color:white; }
         #mobile-host-warning { display: none; color: #ffeb3b; font-size: 0.8rem; margin-top: 15px; padding: 10px; background: rgba(255, 235, 59, 0.1); border-radius: 6px; border: 1px solid rgba(255, 235, 59, 0.3); }
 
         /* Ana Ekran Düzeni */
@@ -223,7 +223,7 @@
         .w-title { font-size: 2.5rem; font-weight: 900; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; text-shadow: 2px 2px 10px rgba(0,0,0,0.5); }
         .w-highlight { color: #ffd700; font-size: 4.5rem; display: block; margin: 15px 0; font-weight: 900; text-shadow: 0 0 20px rgba(255, 215, 0, 0.5); }
 
-        /* MOBİL DÜZENLEMELERİ (MENÜ & SAĞ ÜST SOHBET & DÜZEN) */
+        /* MOBİL DÜZENLEMELERİ */
         @media (max-width: 768px) {
             .hide-on-desktop { display: flex !important; align-items: center; justify-content: center; }
             .hide-on-mobile { display: none !important; }
@@ -264,6 +264,21 @@
 
     <div id="mobile-chat-bubble-btn">💬</div>
 
+    <div class="modal-overlay" id="dm-modal" style="z-index: 999999;">
+        <div class="modal" style="display:flex; flex-direction:column; height: 75vh; max-width: 450px; padding:0; overflow:hidden;">
+            <div style="padding: 15px; background: var(--primary); color: white; display:flex; justify-content:space-between; align-items:center;">
+                <h3 id="dm-title" style="margin:0; font-size: 1.2rem;">DM Sohbet</h3>
+                <button class="modal-close" style="margin:0; width:auto; padding:5px 15px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;" onclick="document.getElementById('dm-modal').classList.remove('active')">Kapat</button>
+            </div>
+            <div id="dm-messages" style="flex:1; padding: 15px; overflow-y:auto; display:flex; flex-direction:column; gap:12px; background: rgba(0,0,0,0.5);">
+                </div>
+            <div style="padding: 12px; background: var(--card-bg); display:flex; gap:10px; border-top: 1px solid var(--border-color);">
+                <input type="text" id="dm-input" placeholder="Mesaj yaz..." style="flex:1; padding:12px; border-radius:20px; border:1px solid var(--border-color); background: #111; color:white; outline:none;">
+                <button id="dm-send-btn" style="background:var(--primary); color:#000; font-weight:bold; border:none; padding:10px 20px; border-radius:20px; cursor:pointer;">Gönder</button>
+            </div>
+        </div>
+    </div>
+
     <div class="modal-overlay" id="user-action-modal">
         <div class="modal" style="max-width: 350px;">
             <div class="user-action-header">
@@ -282,7 +297,10 @@
                 </div>
             </div>
 
-            <button id="ua-btn-add-friend" class="extra-btn" style="background:#2196F3; border:none; margin-top:0; padding:12px; font-weight:bold;">🤝 Arkadaş Ekle</button>
+            <button id="ua-btn-add-friend" class="extra-btn" style="background:#2196F3;">🤝 Arkadaş Ekle</button>
+            <button id="ua-btn-remove-friend" class="extra-btn" style="background:#e50914; display:none;">❌ Arkadaşlıktan Çıkar</button>
+            <button id="ua-btn-dm" class="extra-btn" style="background:#4CAF50; display:none;">💬 Mesaj Gönder (DM)</button>
+
             <button class="modal-close" onclick="document.getElementById('user-action-modal').classList.remove('active')">Kapat</button>
         </div>
     </div>
@@ -322,7 +340,7 @@
                     <hr style="border-top:1px solid var(--border-color); margin:15px 0;">
                 </div>
                 <h4 style="margin:0 0 10px 0; font-size:0.9rem; color:#aaa;">Arkadaş Listesi</h4>
-                <p style="font-size:0.8rem; color:#aaa; margin-bottom:10px;">Buradan arkadaşlarınıza direkt "Odaya Gel" davetiyesi yollayabilirsiniz.</p>
+                <p style="font-size:0.8rem; color:#aaa; margin-bottom:10px;">Buradan arkadaşlarınızla DMleşebilir veya onları odaya davet edebilirsiniz.</p>
                 <div id="friends-list" style="max-height: 300px; overflow-y: auto;">Yükleniyor...</div>
             </div>
             
@@ -562,7 +580,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getDatabase, ref, set, get, remove, serverTimestamp, push, onValue, onChildAdded, onChildRemoved, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+        import { getDatabase, ref, set, get, remove, serverTimestamp, push, onValue, onChildAdded, onChildRemoved } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAUh4qKPlNo7K9j6VtKVUHrp8PwaBpa7WE",
@@ -618,12 +636,9 @@
         let isAdmin = false, myUid = "anon_" + Date.now();
         let globalMicEnabled = false; 
 
-        // Tanimlamalar
         let otherPeers = [];
-        let localAnalyser = null;
         let zenTimer = null;
         
-        // Ses İşleyici Global Değişken
         let currentProcessedStream = null;
 
         function wakeUpZen() {
@@ -640,6 +655,17 @@
 
         // Bireysel Ses Haritaları
         let peerVolumes = {}; 
+
+        // 15 Dakika Oda Kapatma Kalp Atışı (Heartbeat)
+        let roomHeartbeat = null;
+        function startRoomHeartbeat() {
+            if(roomHeartbeat) clearInterval(roomHeartbeat);
+            roomHeartbeat = setInterval(() => {
+                if(roomCode && isHost) {
+                    set(ref(database, `rooms/${roomCode}/lastActive`), Date.now()); // Yayıncı sürekli son aktif zamanı günceller
+                }
+            }, 60000); // Her 1 dakikada bir çalışır
+        }
 
         // Senkronize Medya Oynatıcı 
         let ytPlayer = null;
@@ -679,7 +705,13 @@
         }
 
         function applyVoiceEffect(rawStream) {
-            if (isMobile || currentVoiceEffect === 'none') return rawStream;
+            // GÜNCELLEME: YANKI (ECHO) KESİN ÇÖZÜMÜ
+            // Ses efekti seçilmemişse "AudioContext" oluşturma. Doğrudan rawStream dön.
+            // Bu sayede tarayıcının yerleşik yankı iptal motoru bozulmadan çalışmaya devam eder.
+            if (currentVoiceEffect === 'none') {
+                if (audioCtxProcessing) { audioCtxProcessing.close(); audioCtxProcessing = null; }
+                return rawStream;
+            }
 
             if (audioCtxProcessing) {
                 audioCtxProcessing.close();
@@ -690,43 +722,24 @@
             const dest = audioCtxProcessing.createMediaStreamDestination();
 
             if (currentVoiceEffect === 'robot') {
-                const osc = audioCtxProcessing.createOscillator();
-                osc.type = 'sawtooth'; osc.frequency.value = 50;
-                const gain = audioCtxProcessing.createGain();
-                osc.connect(gain.gain); 
-                source.connect(gain);
-                gain.connect(dest);
-                osc.start();
+                const osc = audioCtxProcessing.createOscillator(); osc.type = 'sawtooth'; osc.frequency.value = 50;
+                const gain = audioCtxProcessing.createGain(); osc.connect(gain.gain); source.connect(gain); gain.connect(dest); osc.start();
             } else if (currentVoiceEffect === 'vader') {
-                const lp = audioCtxProcessing.createBiquadFilter();
-                lp.type = 'lowpass'; lp.frequency.value = 400;
-                const distortion = audioCtxProcessing.createWaveShaper();
-                distortion.curve = makeDistortionCurve(50);
-                source.connect(lp);
-                lp.connect(distortion);
-                distortion.connect(dest);
+                const lp = audioCtxProcessing.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 400;
+                const distortion = audioCtxProcessing.createWaveShaper(); distortion.curve = makeDistortionCurve(50);
+                source.connect(lp); lp.connect(distortion); distortion.connect(dest);
             } else if (currentVoiceEffect === 'alien') {
-                const osc = audioCtxProcessing.createOscillator();
-                osc.type = 'sine'; osc.frequency.value = 6; 
-                const gain = audioCtxProcessing.createGain();
-                osc.connect(gain.gain);
-                source.connect(gain);
-                gain.connect(dest);
-                osc.start();
+                const osc = audioCtxProcessing.createOscillator(); osc.type = 'sine'; osc.frequency.value = 6; 
+                const gain = audioCtxProcessing.createGain(); osc.connect(gain.gain); source.connect(gain); gain.connect(dest); osc.start();
             } else if (currentVoiceEffect === 'megaphone') {
-                const hp = audioCtxProcessing.createBiquadFilter();
-                hp.type = 'highpass'; hp.frequency.value = 1000;
-                const lp = audioCtxProcessing.createBiquadFilter();
-                lp.type = 'lowpass'; lp.frequency.value = 3000;
-                const dist = audioCtxProcessing.createWaveShaper();
-                dist.curve = makeDistortionCurve(30);
+                const hp = audioCtxProcessing.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1000;
+                const lp = audioCtxProcessing.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3000;
+                const dist = audioCtxProcessing.createWaveShaper(); dist.curve = makeDistortionCurve(30);
                 source.connect(hp); hp.connect(lp); lp.connect(dist); dist.connect(dest);
             }
-
             return dest.stream;
         }
 
-        // Özel Avatar Formatlama 
         function renderAvatarHtml(avatarData, uid = '') {
             if(avatarData && avatarData.startsWith('data:image')) {
                 return `<img src="${avatarData}" class="avatar-uid-${uid}" data-uid="${uid}">`;
@@ -734,7 +747,6 @@
             return `<span class="avatar-uid-${uid}" data-uid="${uid}">${avatarData || "👤"}</span>`;
         }
         
-        // Gerçek Zamanlı UI Avatar Güncellemesi
         function updateAvatarsInUI(uid, newAvatarHtml) {
             document.querySelectorAll(`.avatar-uid-${uid}`).forEach(el => {
                 if (newAvatarHtml.startsWith('data:image')) {
@@ -747,7 +759,7 @@
             });
         }
 
-        // --- BİREYSEL KULLANICI MODALI ---
+        // --- BİREYSEL KULLANICI MODALI & ARKADAŞLIK GÜNCELLEMESİ ---
         let selectedActionPeerId = null;
         window.openUserActionModal = function(pId, pName, pAvatar, pUid) {
             selectedActionPeerId = pId;
@@ -759,11 +771,33 @@
             slider.value = peerVolumes[pId] !== undefined ? peerVolumes[pId] * 100 : 100;
             
             const btnFriend = document.getElementById('ua-btn-add-friend');
+            const btnRemoveFriend = document.getElementById('ua-btn-remove-friend');
+            const btnDM = document.getElementById('ua-btn-dm');
+
             if (pId === 'local' || pUid === myUid || !auth.currentUser) {
                 btnFriend.style.display = 'none';
+                btnRemoveFriend.style.display = 'none';
+                btnDM.style.display = 'none';
             } else {
-                btnFriend.style.display = 'block';
-                btnFriend.onclick = () => { window.addFriend(pUid, pName); };
+                // Arkadaş kontrolü yap
+                get(ref(database, `users/${myUid}/friends/${pUid}`)).then(snap => {
+                    if(snap.exists()) {
+                        // Zaten Arkadaş (Arkadaşlıktan Çıkar ve DM Gönder butonu)
+                        btnFriend.style.display = 'none';
+                        btnRemoveFriend.style.display = 'block';
+                        btnDM.style.display = 'block';
+                        
+                        btnRemoveFriend.onclick = () => window.removeFriend(pUid, pName);
+                        btnDM.onclick = () => window.openDM(pUid, pName, pAvatar);
+                    } else {
+                        // Değil (Arkadaş Ekle butonu)
+                        btnFriend.style.display = 'block';
+                        btnRemoveFriend.style.display = 'none';
+                        btnDM.style.display = 'none';
+                        
+                        btnFriend.onclick = () => window.addFriend(pUid, pName);
+                    }
+                });
             }
             
             document.getElementById('user-action-modal').classList.add('active');
@@ -785,15 +819,12 @@
             if(targetAudio) targetAudio.volume = 0;
         });
 
-        // --- SENKRONİZE MEDYA OYNATICI (YouTube & MP4) ---
+        // --- SENKRONİZE MEDYA OYNATICI ---
         window.onYouTubeIframeAPIReady = function() {
             ytPlayer = new YT.Player('yt-player', {
                 height: '100%', width: '100%',
                 playerVars: { 'playsinline': 1, 'controls': isHost ? 1 : 0, 'rel': 0 },
-                events: {
-                    'onReady': (event) => { if(syncActive && !isHost) event.target.playVideo(); },
-                    'onStateChange': onYtStateChange
-                }
+                events: { 'onReady': (event) => { if(syncActive && !isHost) event.target.playVideo(); }, 'onStateChange': onYtStateChange }
             });
         }
         
@@ -817,47 +848,31 @@
         document.getElementById('btn-start-sync').addEventListener('click', () => {
             const url = document.getElementById('sync-url-input').value.trim();
             if(!url) return showToast("Lütfen bir URL girin.", "error");
-            
             document.getElementById('sync-media-modal').classList.remove('active');
             document.getElementById('btn-stop-sync').style.display = 'block';
-            
             if(myStream) { myStream.getVideoTracks().forEach(t => t.stop()); }
-            
-            broadcastData({ type: 'SYNC_MEDIA_START', url: url });
-            handleSyncMediaStart(url, true);
+            broadcastData({ type: 'SYNC_MEDIA_START', url: url }); handleSyncMediaStart(url, true);
         });
 
         document.getElementById('btn-stop-sync').addEventListener('click', () => {
             document.getElementById('sync-media-modal').classList.remove('active');
             document.getElementById('btn-stop-sync').style.display = 'none';
             document.getElementById('sync-url-input').value = '';
-            broadcastData({ type: 'SYNC_MEDIA_STOP' });
-            handleSyncMediaStop();
+            broadcastData({ type: 'SYNC_MEDIA_STOP' }); handleSyncMediaStop();
         });
 
         function handleSyncMediaStart(url, amIHost) {
             syncActive = true;
-            videoElement.style.display = 'none';
-            syncMediaContainer.style.display = 'block';
-            document.getElementById('yt-player').style.display = 'none';
-            syncVideo.style.display = 'none';
+            videoElement.style.display = 'none'; syncMediaContainer.style.display = 'block';
+            document.getElementById('yt-player').style.display = 'none'; syncVideo.style.display = 'none';
 
             const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))((\w|-){11})/);
-            
             if (ytMatch && ytMatch[1]) {
-                const vidId = ytMatch[1];
-                document.getElementById('yt-player').style.display = 'block';
-                if(ytPlayer && ytPlayer.loadVideoById) {
-                    ytPlayer.loadVideoById(vidId);
-                } else {
-                    setTimeout(() => handleSyncMediaStart(url, amIHost), 1000); 
-                }
+                const vidId = ytMatch[1]; document.getElementById('yt-player').style.display = 'block';
+                if(ytPlayer && ytPlayer.loadVideoById) { ytPlayer.loadVideoById(vidId); } else { setTimeout(() => handleSyncMediaStart(url, amIHost), 1000); }
             } else {
-                syncVideo.style.display = 'block';
-                syncVideo.src = url;
-                syncVideo.controls = amIHost;
+                syncVideo.style.display = 'block'; syncVideo.src = url; syncVideo.controls = amIHost;
                 syncVideo.play().catch(e=> playOverlay.style.display='flex');
-                
                 if (amIHost) {
                     syncVideo.onplay = () => broadcastData({ type: 'SYNC_MEDIA', action: 'play', time: syncVideo.currentTime });
                     syncVideo.onpause = () => broadcastData({ type: 'SYNC_MEDIA', action: 'pause', time: syncVideo.currentTime });
@@ -868,9 +883,7 @@
         }
 
         function handleSyncMediaStop() {
-            syncActive = false;
-            syncMediaContainer.style.display = 'none';
-            videoElement.style.display = 'block';
+            syncActive = false; syncMediaContainer.style.display = 'none'; videoElement.style.display = 'block';
             if(ytPlayer && ytPlayer.stopVideo) ytPlayer.stopVideo();
             syncVideo.pause(); syncVideo.src = "";
             showToast("Senkronize medya kapatıldı.", "info");
@@ -880,21 +893,15 @@
             if(data.type === 'SYNC_MEDIA_START') { handleSyncMediaStart(data.url, false); }
             else if (data.type === 'SYNC_MEDIA_STOP') { handleSyncMediaStop(); }
             else if (data.type === 'SYNC_MEDIA' && syncActive && !isHost) {
-                const isYt = document.getElementById('yt-player').style.display === 'block';
-                const time = data.time;
-                
+                const isYt = document.getElementById('yt-player').style.display === 'block'; const time = data.time;
                 if (isYt && ytPlayer) {
                     if (data.action === 'play') { ytPlayer.seekTo(time); ytPlayer.playVideo(); }
                     else if (data.action === 'pause') { ytPlayer.pauseVideo(); ytPlayer.seekTo(time); }
-                    else if (data.action === 'time_update' || data.action === 'seek') {
-                        if (Math.abs(ytPlayer.getCurrentTime() - time) > 2) ytPlayer.seekTo(time);
-                    }
+                    else if (data.action === 'time_update' || data.action === 'seek') { if (Math.abs(ytPlayer.getCurrentTime() - time) > 2) ytPlayer.seekTo(time); }
                 } else {
                     if (data.action === 'play') { syncVideo.currentTime = time; syncVideo.play(); }
                     else if (data.action === 'pause') { syncVideo.pause(); syncVideo.currentTime = time; }
-                    else if (data.action === 'time_update' || data.action === 'seek') {
-                        if (Math.abs(syncVideo.currentTime - time) > 2) syncVideo.currentTime = time;
-                    }
+                    else if (data.action === 'time_update' || data.action === 'seek') { if (Math.abs(syncVideo.currentTime - time) > 2) syncVideo.currentTime = time; }
                 }
             }
         }
@@ -912,30 +919,10 @@
                 return isRight && isBottom;
             }
 
-            function dragMouseDown(e) {
-                if(isResizeHandle(e)) return; 
-                e.preventDefault();
-                pos3 = e.clientX; pos4 = e.clientY;
-                document.onmouseup = closeDragElement;
-                document.onmousemove = elementDrag;
-            }
-            function dragTouchStart(e) {
-                if(isResizeHandle(e)) return;
-                pos3 = e.touches[0].clientX; pos4 = e.touches[0].clientY;
-                document.addEventListener('touchend', closeDragTouch);
-                document.addEventListener('touchmove', elementTouchDrag, {passive: false});
-            }
-            function elementDrag(e) {
-                e.preventDefault();
-                pos1 = pos3 - e.clientX; pos2 = pos4 - e.clientY;
-                pos3 = e.clientX; pos4 = e.clientY;
-                el.style.top = (el.offsetTop - pos2) + "px"; el.style.left = (el.offsetLeft - pos1) + "px";
-            }
-            function elementTouchDrag(e) {
-                pos1 = pos3 - e.touches[0].clientX; pos2 = pos4 - e.touches[0].clientY;
-                pos3 = e.touches[0].clientX; pos4 = e.touches[0].clientY;
-                el.style.top = (el.offsetTop - pos2) + "px"; el.style.left = (el.offsetLeft - pos1) + "px";
-            }
+            function dragMouseDown(e) { if(isResizeHandle(e)) return; e.preventDefault(); pos3 = e.clientX; pos4 = e.clientY; document.onmouseup = closeDragElement; document.onmousemove = elementDrag; }
+            function dragTouchStart(e) { if(isResizeHandle(e)) return; pos3 = e.touches[0].clientX; pos4 = e.touches[0].clientY; document.addEventListener('touchend', closeDragTouch); document.addEventListener('touchmove', elementTouchDrag, {passive: false}); }
+            function elementDrag(e) { e.preventDefault(); pos1 = pos3 - e.clientX; pos2 = pos4 - e.clientY; pos3 = e.clientX; pos4 = e.clientY; el.style.top = (el.offsetTop - pos2) + "px"; el.style.left = (el.offsetLeft - pos1) + "px"; }
+            function elementTouchDrag(e) { pos1 = pos3 - e.touches[0].clientX; pos2 = pos4 - e.touches[0].clientY; pos3 = e.touches[0].clientX; pos4 = e.touches[0].clientY; el.style.top = (el.offsetTop - pos2) + "px"; el.style.left = (el.offsetLeft - pos1) + "px"; }
             function closeDragElement() { document.onmouseup = null; document.onmousemove = null; }
             function closeDragTouch() { document.removeEventListener('touchend', closeDragTouch); document.removeEventListener('touchmove', elementTouchDrag); }
         }
@@ -944,36 +931,24 @@
         function avatarChangedRoutine(newAvatar) {
             myAvatar = newAvatar;
             if(auth.currentUser) set(ref(database, 'users/' + auth.currentUser.uid + '/avatar'), myAvatar);
-            
             updateAvatarsInUI(myUid, myAvatar);
-
-            if (peer && !peer.destroyed) {
-                broadcastData({ type: 'AVATAR_UPDATE', peerId: peer.id, uid: myUid, avatar: myAvatar });
-            }
+            if (peer && !peer.destroyed) { broadcastData({ type: 'AVATAR_UPDATE', peerId: peer.id, uid: myUid, avatar: myAvatar }); }
         }
 
         document.getElementById('custom-avatar-upload').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
+            const file = e.target.files[0]; if (!file) return; const reader = new FileReader();
             reader.onload = function(evt) {
                 const img = new Image();
                 img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = 128; canvas.height = 128; 
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, 128, 128);
-                    
+                    const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128; 
+                    const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, 128, 128);
                     const base64Data = canvas.toDataURL('image/jpeg', 0.7);
                     
                     document.querySelectorAll('.avatar-option').forEach(a => a.classList.remove('selected'));
-                    const customOpt = document.createElement('div');
-                    customOpt.className = 'avatar-option selected';
-                    customOpt.innerHTML = `<img src="${base64Data}">`;
+                    const customOpt = document.createElement('div'); customOpt.className = 'avatar-option selected'; customOpt.innerHTML = `<img src="${base64Data}">`;
                     document.getElementById('avatar-selector-container').appendChild(customOpt);
                     
-                    avatarChangedRoutine(base64Data);
-                    showToast("Özel avatarınız yüklendi ve herkese güncellendi!", "success");
+                    avatarChangedRoutine(base64Data); showToast("Özel avatarınız yüklendi ve herkese güncellendi!", "success");
                 };
                 img.src = evt.target.result;
             };
@@ -983,15 +958,11 @@
         document.querySelectorAll('.avatar-option').forEach(el => { 
             el.addEventListener('click', () => { 
                 document.querySelectorAll('.avatar-option').forEach(a => a.classList.remove('selected')); 
-                el.classList.add('selected'); 
-                avatarChangedRoutine(el.dataset.val);
-                showToast("Avatarınız değiştirildi ve herkese güncellendi!", "success");
+                el.classList.add('selected'); avatarChangedRoutine(el.dataset.val); showToast("Avatarınız değiştirildi!", "success");
             }); 
         });
 
-        document.getElementById('btn-mobile-menu').addEventListener('click', () => {
-            document.getElementById('collapsible-controls').classList.toggle('open');
-        });
+        document.getElementById('btn-mobile-menu').addEventListener('click', () => { document.getElementById('collapsible-controls').classList.toggle('open'); });
 
         const resizer = document.getElementById('main-resizer');
         const sidebar = document.querySelector('.sidebar');
@@ -1012,185 +983,93 @@
         window.addEventListener('touchend', () => { if(isResizing) { isResizing = false; resizer.classList.remove('dragging'); } });
 
         let isDraggingFloat = false, startX, startY, initialTop, initialLeft;
-        sidebarHeader.addEventListener('mousedown', floatDragStart);
-        sidebarHeader.addEventListener('touchstart', floatDragStart, {passive: false});
-        sidebarHeader.addEventListener('dblclick', () => { 
-            sidebar.classList.remove('floating'); document.body.classList.remove('chat-floating', 'chat-floating-minimized');
-            showToast("Pencere sabitlendi", "info");
-        });
+        sidebarHeader.addEventListener('mousedown', floatDragStart); sidebarHeader.addEventListener('touchstart', floatDragStart, {passive: false});
+        sidebarHeader.addEventListener('dblclick', () => { sidebar.classList.remove('floating'); document.body.classList.remove('chat-floating', 'chat-floating-minimized'); showToast("Pencere sabitlendi", "info"); });
 
         function floatDragStart(e) {
             if (e.target.tagName.toLowerCase() === 'button' || window.innerWidth <= 768) return; 
             isDraggingFloat = true;
-            let clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
-            let clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
-
-            if (!sidebar.classList.contains('floating')) {
-                sidebar.classList.add('floating');
-                document.documentElement.style.setProperty('--float-left', (clientX - 100) + 'px');
-                document.documentElement.style.setProperty('--float-top', (clientY - 20) + 'px');
-            }
-
-            const rect = sidebar.getBoundingClientRect();
-            initialTop = rect.top; initialLeft = rect.left;
-            startX = clientX; startY = clientY;
+            let clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX; let clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+            if (!sidebar.classList.contains('floating')) { sidebar.classList.add('floating'); document.documentElement.style.setProperty('--float-left', (clientX - 100) + 'px'); document.documentElement.style.setProperty('--float-top', (clientY - 20) + 'px'); }
+            const rect = sidebar.getBoundingClientRect(); initialTop = rect.top; initialLeft = rect.left; startX = clientX; startY = clientY;
             document.addEventListener('mousemove', floatDrag); document.addEventListener('touchmove', floatDrag, {passive: false});
             document.addEventListener('mouseup', floatDragEnd); document.addEventListener('touchend', floatDragEnd);
         }
         function floatDrag(e) {
             if (!isDraggingFloat) return; e.preventDefault();
-            let currentX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
-            let currentY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+            let currentX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX; let currentY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
             const dx = currentX - startX; const dy = currentY - startY;
-            document.documentElement.style.setProperty('--float-top', (initialTop + dy) + 'px');
-            document.documentElement.style.setProperty('--float-left', (initialLeft + dx) + 'px');
+            document.documentElement.style.setProperty('--float-top', (initialTop + dy) + 'px'); document.documentElement.style.setProperty('--float-left', (initialLeft + dx) + 'px');
         }
-        function floatDragEnd() {
-            isDraggingFloat = false;
-            document.removeEventListener('mousemove', floatDrag); document.removeEventListener('touchmove', floatDrag);
-            document.removeEventListener('mouseup', floatDragEnd); document.removeEventListener('touchend', floatDragEnd);
-        }
+        function floatDragEnd() { isDraggingFloat = false; document.removeEventListener('mousemove', floatDrag); document.removeEventListener('touchmove', floatDrag); document.removeEventListener('mouseup', floatDragEnd); document.removeEventListener('touchend', floatDragEnd); }
 
-        const btnToggleFloatMobile = document.getElementById('btn-toggle-float-mobile');
-        const btnCloseFloatingMobile = document.getElementById('btn-close-floating-mobile');
-        const mobileBubbleBtn = document.getElementById('mobile-chat-bubble-btn');
-
+        const btnToggleFloatMobile = document.getElementById('btn-toggle-float-mobile'); const btnCloseFloatingMobile = document.getElementById('btn-close-floating-mobile'); const mobileBubbleBtn = document.getElementById('mobile-chat-bubble-btn');
         btnToggleFloatMobile.addEventListener('click', (e) => { e.stopPropagation(); sidebar.classList.add('floating'); document.body.classList.add('chat-floating'); showToast("Sohbet koptu.", "info"); });
         btnCloseFloatingMobile.addEventListener('click', (e) => { e.stopPropagation(); document.body.classList.add('chat-floating-minimized'); });
         mobileBubbleBtn.addEventListener('click', () => { document.body.classList.remove('chat-floating-minimized'); });
 
         // --- 🍅 MATTER.JS FİZİKSEL EKRAN ---
         const Engine = Matter.Engine, Render = Matter.Render, Runner = Matter.Runner, Bodies = Matter.Bodies, Composite = Matter.Composite, Events = Matter.Events;
-        const physicsEngine = Engine.create();
-        const matterCanvas = document.getElementById('matter-canvas');
+        const physicsEngine = Engine.create(); const matterCanvas = document.getElementById('matter-canvas');
         const physicsRender = Render.create({ canvas: matterCanvas, engine: physicsEngine, options: { width: window.innerWidth, height: window.innerHeight, background: 'transparent', wireframes: false } });
         
         let physicsWalls = [];
         function updateMatterBounds() {
-            const w = document.querySelector('.video-wrapper').clientWidth;
-            const h = document.querySelector('.video-wrapper').clientHeight;
-            matterCanvas.width = w; matterCanvas.height = h;
-            physicsRender.options.width = w; physicsRender.options.height = h;
-            
+            const w = document.querySelector('.video-wrapper').clientWidth; const h = document.querySelector('.video-wrapper').clientHeight;
+            matterCanvas.width = w; matterCanvas.height = h; physicsRender.options.width = w; physicsRender.options.height = h;
             if(physicsWalls.length > 0) Composite.remove(physicsEngine.world, physicsWalls);
-            const ground = Bodies.rectangle(w/2, h + 25, w, 50, { isStatic: true });
-            const wallL = Bodies.rectangle(-25, h/2, 50, h, { isStatic: true });
-            const wallR = Bodies.rectangle(w+25, h/2, 50, h, { isStatic: true });
-            physicsWalls = [ground, wallL, wallR];
-            Composite.add(physicsEngine.world, physicsWalls);
+            const ground = Bodies.rectangle(w/2, h + 25, w, 50, { isStatic: true }); const wallL = Bodies.rectangle(-25, h/2, 50, h, { isStatic: true }); const wallR = Bodies.rectangle(w+25, h/2, 50, h, { isStatic: true });
+            physicsWalls = [ground, wallL, wallR]; Composite.add(physicsEngine.world, physicsWalls);
         }
         window.addEventListener('resize', updateMatterBounds);
-
-        Events.on(physicsRender, 'afterRender', function() {
-            const ctx = physicsRender.context; ctx.font = "35px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            Composite.allBodies(physicsEngine.world).forEach(body => {
-                if (body.plugin && body.plugin.emoji) {
-                    ctx.save(); ctx.translate(body.position.x, body.position.y); ctx.rotate(body.angle); ctx.fillText(body.plugin.emoji, 0, 0); ctx.restore();
-                }
-            });
-        });
-
+        Events.on(physicsRender, 'afterRender', function() { const ctx = physicsRender.context; ctx.font = "35px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; Composite.allBodies(physicsEngine.world).forEach(body => { if (body.plugin && body.plugin.emoji) { ctx.save(); ctx.translate(body.position.x, body.position.y); ctx.rotate(body.angle); ctx.fillText(body.plugin.emoji, 0, 0); ctx.restore(); } }); });
         Runner.run(Runner.create(), physicsEngine); Render.run(physicsRender);
 
         let dragEmojiEl = null, dragEmojiChar = '', dragHistory = [];
         document.querySelectorAll('.reaction-btn').forEach(btn => { btn.addEventListener('mousedown', startEmojiDrag); btn.addEventListener('touchstart', startEmojiDrag, {passive: false}); });
 
-        function startEmojiDrag(e) {
-            e.preventDefault(); dragEmojiChar = e.target.dataset.emoji; dragEmojiEl = document.createElement('div'); dragEmojiEl.className = 'dragged-emoji'; dragEmojiEl.innerText = dragEmojiChar; document.body.appendChild(dragEmojiEl);
-            let clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX; let clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
-            dragEmojiEl.style.left = clientX + 'px'; dragEmojiEl.style.top = clientY + 'px'; dragHistory = [{x: clientX, y: clientY, t: Date.now()}];
-            document.addEventListener('mousemove', moveEmojiDrag); document.addEventListener('touchmove', moveEmojiDrag, {passive: false}); document.addEventListener('mouseup', endEmojiDrag); document.addEventListener('touchend', endEmojiDrag);
-        }
-        function moveEmojiDrag(e) {
-            if(!dragEmojiEl) return; e.preventDefault();
-            let clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX; let clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
-            dragEmojiEl.style.left = clientX + 'px'; dragEmojiEl.style.top = clientY + 'px'; dragHistory.push({x: clientX, y: clientY, t: Date.now()});
-            if(dragHistory.length > 5) dragHistory.shift();
-        }
-        function endEmojiDrag(e) {
-            if(!dragEmojiEl) return;
-            document.removeEventListener('mousemove', moveEmojiDrag); document.removeEventListener('touchmove', moveEmojiDrag); document.removeEventListener('mouseup', endEmojiDrag); document.removeEventListener('touchend', endEmojiDrag);
-            let vx = 0, vy = -15; 
-            if (dragHistory.length > 1) {
-                const first = dragHistory[0]; const last = dragHistory[dragHistory.length - 1]; const dt = last.t - first.t;
-                if(dt > 0) { vx = ((last.x - first.x) / dt) * 15; vy = ((last.y - first.y) / dt) * 15; }
-            }
-            const rect = document.querySelector('.video-wrapper').getBoundingClientRect();
-            let dropX = dragHistory[dragHistory.length - 1].x - rect.left; let dropY = dragHistory[dragHistory.length - 1].y - rect.top;
-            if(dropX < 0 || dropX > rect.width || dropY < 0 || dropY > rect.height) { dropX = rect.width / 2; dropY = rect.height - 50; }
-            dragEmojiEl.remove(); dragEmojiEl = null;
-            spawnPhysicsEmoji(dragEmojiChar, dropX, dropY, vx, vy, true);
-        }
+        function startEmojiDrag(e) { e.preventDefault(); dragEmojiChar = e.target.dataset.emoji; dragEmojiEl = document.createElement('div'); dragEmojiEl.className = 'dragged-emoji'; dragEmojiEl.innerText = dragEmojiChar; document.body.appendChild(dragEmojiEl); let clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX; let clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY; dragEmojiEl.style.left = clientX + 'px'; dragEmojiEl.style.top = clientY + 'px'; dragHistory = [{x: clientX, y: clientY, t: Date.now()}]; document.addEventListener('mousemove', moveEmojiDrag); document.addEventListener('touchmove', moveEmojiDrag, {passive: false}); document.addEventListener('mouseup', endEmojiDrag); document.addEventListener('touchend', endEmojiDrag); }
+        function moveEmojiDrag(e) { if(!dragEmojiEl) return; e.preventDefault(); let clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX; let clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY; dragEmojiEl.style.left = clientX + 'px'; dragEmojiEl.style.top = clientY + 'px'; dragHistory.push({x: clientX, y: clientY, t: Date.now()}); if(dragHistory.length > 5) dragHistory.shift(); }
+        function endEmojiDrag(e) { if(!dragEmojiEl) return; document.removeEventListener('mousemove', moveEmojiDrag); document.removeEventListener('touchmove', moveEmojiDrag); document.removeEventListener('mouseup', endEmojiDrag); document.removeEventListener('touchend', endEmojiDrag); let vx = 0, vy = -15; if (dragHistory.length > 1) { const first = dragHistory[0]; const last = dragHistory[dragHistory.length - 1]; const dt = last.t - first.t; if(dt > 0) { vx = ((last.x - first.x) / dt) * 15; vy = ((last.y - first.y) / dt) * 15; } } const rect = document.querySelector('.video-wrapper').getBoundingClientRect(); let dropX = dragHistory[dragHistory.length - 1].x - rect.left; let dropY = dragHistory[dragHistory.length - 1].y - rect.top; if(dropX < 0 || dropX > rect.width || dropY < 0 || dropY > rect.height) { dropX = rect.width / 2; dropY = rect.height - 50; } dragEmojiEl.remove(); dragEmojiEl = null; spawnPhysicsEmoji(dragEmojiChar, dropX, dropY, vx, vy, true); }
 
         function spawnPhysicsEmoji(emoji, x, y, vx, vy, isLocalThrow = false) {
             const body = Bodies.circle(x, y, 20, { restitution: 0.8, frictionAir: 0.01, density: 0.04, plugin: { emoji: emoji } });
             Matter.Body.setVelocity(body, { x: vx, y: vy }); Composite.add(physicsEngine.world, body);
             setTimeout(() => { Composite.remove(physicsEngine.world, body); }, 8000); 
-            if(isLocalThrow) {
-                stats.emojiCount++;
-                const data = { type: 'PHYSICS_EMOJI', emoji: emoji, xRatio: x / matterCanvas.width, yRatio: y / matterCanvas.height, vx: vx, vy: vy };
-                broadcastData(data);
-            }
+            if(isLocalThrow) { stats.emojiCount++; broadcastData({ type: 'PHYSICS_EMOJI', emoji: emoji, xRatio: x / matterCanvas.width, yRatio: y / matterCanvas.height, vx: vx, vy: vy }); }
         }
 
         // --- KİMLİK DOĞRULAMA (AUTH) ---
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                myUid = user.uid;
-                myUsername = user.displayName || user.email.split('@')[0];
-                isAdmin = (user.email === 'yusar646@gmail.com');
-                
+                myUid = user.uid; myUsername = user.displayName || user.email.split('@')[0]; isAdmin = (user.email === 'yusar646@gmail.com');
                 get(ref(database, 'users/' + myUid + '/avatar')).then(snap => {
                     if (snap.exists() && snap.val()) {
-                        myAvatar = snap.val();
-                        const customOpt = document.createElement('div');
-                        customOpt.className = 'avatar-option selected';
-                        customOpt.innerHTML = `<img src="${myAvatar}">`;
-                        document.getElementById('avatar-selector-container').appendChild(customOpt);
+                        myAvatar = snap.val(); const customOpt = document.createElement('div'); customOpt.className = 'avatar-option selected'; customOpt.innerHTML = `<img src="${myAvatar}">`; document.getElementById('avatar-selector-container').appendChild(customOpt);
                     }
                 });
 
-                document.getElementById('auth-card').style.display = 'none';
-                document.getElementById('room-controls').style.display = 'block';
-                document.getElementById('display-username').innerText = myUsername;
-                document.getElementById('username-input').value = myUsername; 
-                document.getElementById('btn-logout').style.display = 'inline-block';
-                
-                document.getElementById('admin-badge').style.display = isAdmin ? 'inline' : 'none';
-                document.getElementById('support-user-view').style.display = isAdmin ? 'none' : 'block';
-                document.getElementById('support-admin-view').style.display = isAdmin ? 'block' : 'none';
+                document.getElementById('auth-card').style.display = 'none'; document.getElementById('room-controls').style.display = 'block'; document.getElementById('display-username').innerText = myUsername; document.getElementById('username-input').value = myUsername; document.getElementById('btn-logout').style.display = 'inline-block';
+                document.getElementById('admin-badge').style.display = isAdmin ? 'inline' : 'none'; document.getElementById('support-user-view').style.display = isAdmin ? 'none' : 'block'; document.getElementById('support-admin-view').style.display = isAdmin ? 'block' : 'none';
 
-                showToast(`Hoş geldin, ${myUsername}!`, 'success');
-                loadInboxAndSupport();
+                showToast(`Hoş geldin, ${myUsername}!`, 'success'); loadInboxAndSupport();
             } else {
-                document.getElementById('auth-card').style.display = 'block';
-                document.getElementById('room-controls').style.display = 'none';
-                document.getElementById('btn-logout').style.display = 'none';
-                isAdmin = false;
+                document.getElementById('auth-card').style.display = 'block'; document.getElementById('room-controls').style.display = 'none'; document.getElementById('btn-logout').style.display = 'none'; isAdmin = false;
             }
         });
 
         document.getElementById('btn-google-login').addEventListener('click', () => { signInWithPopup(auth, new GoogleAuthProvider()).catch(err => showToast(err.message, 'error')); });
-        document.getElementById('btn-email-login').addEventListener('click', () => {
-            const email = document.getElementById('email-input').value; const pass = document.getElementById('password-input').value;
-            if(!email || !pass) return showToast('E-posta ve şifre giriniz', 'error');
-            signInWithEmailAndPassword(auth, email, pass).catch(err => {
-                if(err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') createUserWithEmailAndPassword(auth, email, pass).catch(e => showToast(e.message, 'error'));
-                else showToast('Giriş Hatası: ' + err.message, 'error');
-            });
-        });
+        document.getElementById('btn-email-login').addEventListener('click', () => { const email = document.getElementById('email-input').value; const pass = document.getElementById('password-input').value; if(!email || !pass) return showToast('E-posta ve şifre giriniz', 'error'); signInWithEmailAndPassword(auth, email, pass).catch(err => { if(err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') createUserWithEmailAndPassword(auth, email, pass).catch(e => showToast(e.message, 'error')); else showToast('Giriş Hatası: ' + err.message, 'error'); }); });
         document.getElementById('btn-logout').addEventListener('click', () => { signOut(auth); document.getElementById('settings-modal').classList.remove('active'); });
 
         // --- INBOX, DESTEK VE ARKADAŞLAR MANTIĞI ---
-        let lastInboxCount = 0;
-        let lastRequestsCount = 0;
+        let lastInboxCount = 0; let lastRequestsCount = 0;
 
         function loadInboxAndSupport() {
             if(!auth.currentUser) return;
 
             onValue(ref(database, 'inbox/' + myUid), (snapshot) => {
-                const list = document.getElementById('inbox-list'); list.innerHTML = '';
-                let currentCount = 0;
+                const list = document.getElementById('inbox-list'); list.innerHTML = ''; let currentCount = 0;
                 if(snapshot.exists()) {
                     currentCount = Object.keys(snapshot.val()).length;
                     snapshot.forEach(child => { 
@@ -1201,14 +1080,11 @@
                         </div>`; 
                     });
                 } else { list.innerHTML = '<p style="color:#888;">Gelen kutun boş.</p>'; }
-                
-                if (currentCount > lastInboxCount && lastInboxCount !== 0) triggerNotificationUI();
-                lastInboxCount = currentCount;
+                if (currentCount > lastInboxCount && lastInboxCount !== 0) triggerNotificationUI(); lastInboxCount = currentCount;
             });
 
             onValue(ref(database, 'users/' + myUid + '/friend_requests'), (snapshot) => {
-                const rList = document.getElementById('friend-requests-list'); rList.innerHTML = '';
-                let reqCount = 0;
+                const rList = document.getElementById('friend-requests-list'); rList.innerHTML = ''; let reqCount = 0;
                 if (snapshot.exists()) {
                     reqCount = Object.keys(snapshot.val()).length;
                     snapshot.forEach(child => {
@@ -1222,238 +1098,165 @@
                         </div>`;
                     });
                 } else { rList.innerHTML = '<p style="color:#888;">Bekleyen istek yok.</p>'; }
-
-                if (reqCount > lastRequestsCount && lastRequestsCount !== 0) triggerNotificationUI();
-                lastRequestsCount = reqCount;
+                if (reqCount > lastRequestsCount && lastRequestsCount !== 0) triggerNotificationUI(); lastRequestsCount = reqCount;
             });
 
             onValue(ref(database, 'users/' + myUid + '/friends'), (snapshot) => {
                 const flist = document.getElementById('friends-list'); flist.innerHTML = '';
                 if (snapshot.exists()) {
                     snapshot.forEach(child => {
-                        const fId = child.key; const fData = child.val();
-                        const fName = typeof fData === 'string' ? fData : fData.name;
-                        const fAvatar = typeof fData === 'string' ? '👤' : (fData.avatar || '👤');
+                        const fId = child.key; const fData = child.val(); const fName = typeof fData === 'string' ? fData : fData.name; const fAvatar = typeof fData === 'string' ? '👤' : (fData.avatar || '👤');
                         
-                        flist.innerHTML += `<div class="ticket-item">
-                            <span>${renderAvatarHtml(fAvatar, fId)} ${fName}</span>
-                            <button class="friend-btn" onclick="window.inviteFriend('${fId}', '${fName}')">Davet Et</button>
+                        // Arkadaşlar listesine doğrudan DM butonu eklendi!
+                        flist.innerHTML += `<div class="ticket-item" style="flex-direction:column; gap:8px; align-items:flex-start;">
+                            <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+                                <span>${renderAvatarHtml(fAvatar, fId)} ${fName}</span>
+                                <div style="display:flex; gap:5px;">
+                                    <button class="friend-btn" style="background:#4CAF50;" onclick="window.openDM('${fId}', '${fName}')">DM</button>
+                                    <button class="friend-btn" onclick="window.inviteFriend('${fId}', '${fName}')">Davet Et</button>
+                                </div>
+                            </div>
                         </div>`;
                     });
                 } else { flist.innerHTML = '<p style="color:#888;">Henüz ekli arkadaşınız yok.</p>'; }
             });
 
             onValue(ref(database, 'support_tickets'), (snapshot) => {
-                const myTicketsList = document.getElementById('my-tickets-list'); myTicketsList.innerHTML = '';
-                const adminList = document.getElementById('admin-tickets-list'); adminList.innerHTML = '';
-                
+                const myTicketsList = document.getElementById('my-tickets-list'); myTicketsList.innerHTML = ''; const adminList = document.getElementById('admin-tickets-list'); adminList.innerHTML = '';
                 if(snapshot.exists()) {
                     snapshot.forEach(child => {
                         const d = child.val(); const tId = child.key;
-                        if(isAdmin) {
-                            adminList.innerHTML += `<div class="ticket-item" style="flex-direction:column; align-items:flex-start;">
-                                <div><b>Kimden:</b> ${d.email} <br><b>Soru:</b> ${d.message}</div>
-                                <div style="display:flex; width:100%; gap:5px;"><input type="text" id="reply-${tId}" placeholder="Yanıt yazın..."><button class="friend-btn" onclick="window.replyTicket('${tId}', '${d.uid}')">Gönder</button></div>
-                            </div>`;
-                        } else if (d.uid === myUid) {
-                            myTicketsList.innerHTML += `<div class="ticket-item"><b>Sordun:</b> ${d.message} <br><span style="color:#888; font-size:0.75rem;">(Yanıt Bekliyor)</span></div>`;
-                        }
+                        if(isAdmin) { adminList.innerHTML += `<div class="ticket-item" style="flex-direction:column; align-items:flex-start;"><div><b>Kimden:</b> ${d.email} <br><b>Soru:</b> ${d.message}</div><div style="display:flex; width:100%; gap:5px;"><input type="text" id="reply-${tId}" placeholder="Yanıt yazın..."><button class="friend-btn" onclick="window.replyTicket('${tId}', '${d.uid}')">Gönder</button></div></div>`; } 
+                        else if (d.uid === myUid) { myTicketsList.innerHTML += `<div class="ticket-item"><b>Sordun:</b> ${d.message} <br><span style="color:#888; font-size:0.75rem;">(Yanıt Bekliyor)</span></div>`; }
                     });
+                } else { adminList.innerHTML = '<p style="color:#888;">Bekleyen talep yok.</p>'; if(myTicketsList.innerHTML === '') myTicketsList.innerHTML = '<p style="color:#888;">Henüz bir talebiniz yok.</p>'; }
+            });
+        }
+
+        function triggerNotificationUI() { document.getElementById('notif-audio').play().catch(()=>{}); document.getElementById('btn-open-inbox').classList.add('has-notification'); document.getElementById('btn-inbox-ingame').classList.add('has-notification'); }
+        window.switchTab = function(tab) { document.querySelectorAll('#inbox-modal .tab-content').forEach(el => el.classList.remove('active')); document.querySelectorAll('#inbox-modal .tabs button').forEach(el => el.classList.remove('active')); document.getElementById('content-' + tab).classList.add('active'); document.getElementById('tab-' + tab).classList.add('active'); };
+        window.sendSupportTicket = function() { const msg = document.getElementById('support-msg-input').value.trim(); if(!msg) return; push(ref(database, 'support_tickets'), { uid: auth.currentUser.uid, email: auth.currentUser.email, message: msg, timestamp: serverTimestamp() }); document.getElementById('support-msg-input').value = ''; showToast("Destek talebi gönderildi.", "success"); };
+        window.replyTicket = function(ticketId, userUid) { const replyMsg = document.getElementById('reply-' + ticketId).value.trim(); if(!replyMsg) return; push(ref(database, 'inbox/' + userUid), { from: '👑 Admin', message: replyMsg, timestamp: serverTimestamp(), type: 'msg' }).then(() => { remove(ref(database, 'support_tickets/' + ticketId)); showToast("Yanıt başarıyla gönderildi.", "success"); }); };
+        
+        // --- DM SİSTEMİ FONKSİYONLARI ---
+        let currentDMRoom = null;
+        window.openDM = function(targetUid, targetName) {
+            document.getElementById('user-action-modal').classList.remove('active');
+            document.getElementById('inbox-modal').classList.remove('active');
+            
+            document.getElementById('dm-title').innerText = `${targetName} ile Sohbet`;
+            document.getElementById('dm-modal').classList.add('active');
+            
+            // Sohbet ID'sini oluştur (Alfabetik/UID bazlı stabil eşleştirme)
+            const chatId = myUid < targetUid ? `${myUid}_${targetUid}` : `${targetUid}_${myUid}`;
+            currentDMRoom = chatId;
+            
+            const dmContainer = document.getElementById('dm-messages');
+            dmContainer.innerHTML = '<span style="color:#888; font-size:0.8rem; text-align:center; display:block;">Sohbet yükleniyor...</span>';
+            
+            const messagesRef = ref(database, `direct_messages/${chatId}`);
+            
+            onValue(messagesRef, (snapshot) => {
+                if(currentDMRoom !== chatId) return; // Başka DM'e geçildiyse sızıntıyı engelle
+                dmContainer.innerHTML = '';
+                if(snapshot.exists()) {
+                    snapshot.forEach(child => {
+                        const msg = child.val();
+                        const isMe = msg.senderUid === myUid;
+                        dmContainer.innerHTML += `
+                            <div style="align-self: ${isMe ? 'flex-end' : 'flex-start'}; background: ${isMe ? 'var(--primary)' : 'rgba(0,0,0,0.6)'}; border: 1px solid ${isMe ? 'transparent' : 'var(--border-color)'}; padding: 10px 14px; border-radius: 12px; max-width: 80%; word-wrap: break-word; font-size:0.9rem; color:white;">
+                                <div style="font-size: 0.7rem; color: ${isMe ? '#ffcccb' : '#aaa'}; margin-bottom: 4px; font-weight:bold;">${isMe ? 'Sen' : targetName}</div>
+                                <div>${msg.text}</div>
+                            </div>
+                        `;
+                    });
+                    setTimeout(() => { dmContainer.scrollTop = dmContainer.scrollHeight; }, 50);
                 } else {
-                    adminList.innerHTML = '<p style="color:#888;">Bekleyen talep yok.</p>';
-                    if(myTicketsList.innerHTML === '') myTicketsList.innerHTML = '<p style="color:#888;">Henüz bir talebiniz yok.</p>';
+                    dmContainer.innerHTML = '<div style="text-align:center; color:#888; margin-top:20px; font-size:0.8rem;">Bu arkadaşınızla henüz mesajlaşmadınız. İlk mesajı gönder!</div>';
                 }
             });
-        }
 
-        function triggerNotificationUI() {
-            document.getElementById('notif-audio').play().catch(()=>{}); 
-            document.getElementById('btn-open-inbox').classList.add('has-notification');
-            document.getElementById('btn-inbox-ingame').classList.add('has-notification');
-        }
-
-        window.switchTab = function(tab) {
-            document.querySelectorAll('#inbox-modal .tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('#inbox-modal .tabs button').forEach(el => el.classList.remove('active'));
-            document.getElementById('content-' + tab).classList.add('active');
-            document.getElementById('tab-' + tab).classList.add('active');
+            // Gönder Butonu Ataması
+            const sendBtn = document.getElementById('dm-send-btn');
+            const inputField = document.getElementById('dm-input');
+            
+            // Mevcut eventi temizle (Duplicate olmaması için)
+            const newSendBtn = sendBtn.cloneNode(true);
+            sendBtn.parentNode.replaceChild(newSendBtn, sendBtn);
+            
+            newSendBtn.onclick = () => {
+                const text = inputField.value.trim();
+                if(!text) return;
+                
+                push(messagesRef, { senderUid: myUid, text: text, timestamp: serverTimestamp() });
+                inputField.value = '';
+                
+                // Karşı tarafa bildirim gönder (İnbox'a düşsün)
+                push(ref(database, `inbox/${targetUid}`), {
+                    from: myUsername, message: "Sana bir özel mesaj (DM) gönderdi.", type: 'msg', timestamp: serverTimestamp()
+                });
+            };
+            
+            inputField.onkeypress = (e) => { if (e.key === 'Enter') newSendBtn.click(); };
         };
 
-        window.sendSupportTicket = function() {
-            const msg = document.getElementById('support-msg-input').value.trim();
-            if(!msg) return;
-            push(ref(database, 'support_tickets'), { uid: auth.currentUser.uid, email: auth.currentUser.email, message: msg, timestamp: serverTimestamp() });
-            document.getElementById('support-msg-input').value = '';
-            showToast("Destek talebi gönderildi.", "success");
-        };
-
-        window.replyTicket = function(ticketId, userUid) {
-            const replyMsg = document.getElementById('reply-' + ticketId).value.trim();
-            if(!replyMsg) return;
-            push(ref(database, 'inbox/' + userUid), { from: '👑 Admin', message: replyMsg, timestamp: serverTimestamp(), type: 'msg' }).then(() => {
-                remove(ref(database, 'support_tickets/' + ticketId)); 
-                showToast("Yanıt başarıyla gönderildi.", "success");
-            });
-        };
-
-        window.addFriend = function(targetUid, targetName) {
-            if(!auth.currentUser) return showToast("Giriş yapmalısınız", "error");
-            set(ref(database, `users/${targetUid}/friend_requests/${myUid}`), { name: myUsername, avatar: myAvatar });
-            showToast(`${targetName} kişisine arkadaşlık isteği gönderildi!`, "success");
+        window.addFriend = function(targetUid, targetName) { if(!auth.currentUser) return showToast("Giriş yapmalısınız", "error"); set(ref(database, `users/${targetUid}/friend_requests/${myUid}`), { name: myUsername, avatar: myAvatar }); showToast(`${targetName} kişisine arkadaşlık isteği gönderildi!`, "success"); document.getElementById('user-action-modal').classList.remove('active'); };
+        window.acceptFriend = function(reqUid, reqName, reqAvatar) { set(ref(database, `users/${myUid}/friends/${reqUid}`), { name: reqName, avatar: reqAvatar || '👤' }); set(ref(database, `users/${reqUid}/friends/${myUid}`), { name: myUsername, avatar: myAvatar }); remove(ref(database, `users/${myUid}/friend_requests/${reqUid}`)); showToast("Arkadaşlık isteği kabul edildi!", "success"); };
+        window.rejectFriend = function(reqUid) { remove(ref(database, `users/${myUid}/friend_requests/${reqUid}`)); };
+        window.removeFriend = function(targetUid, targetName) {
+            remove(ref(database, `users/${myUid}/friends/${targetUid}`));
+            remove(ref(database, `users/${targetUid}/friends/${myUid}`));
+            showToast(`${targetName} arkadaşlıktan çıkarıldı.`, "info");
             document.getElementById('user-action-modal').classList.remove('active');
         };
+        window.inviteFriend = function(targetUid, targetName) { if(!roomCode) return showToast("Önce bir odaya katılın veya kurun.", "error"); push(ref(database, `inbox/${targetUid}`), { from: myUsername, message: `Seni bir yayın partisine davet ediyor!`, roomCode: roomCode, type: 'invite', timestamp: serverTimestamp() }); showToast(`${targetName} davet edildi!`, "success"); };
 
-        window.acceptFriend = function(reqUid, reqName, reqAvatar) {
-            set(ref(database, `users/${myUid}/friends/${reqUid}`), { name: reqName, avatar: reqAvatar || '👤' });
-            set(ref(database, `users/${reqUid}/friends/${myUid}`), { name: myUsername, avatar: myAvatar });
-            remove(ref(database, `users/${myUid}/friend_requests/${reqUid}`));
-            showToast("Arkadaşlık isteği kabul edildi!", "success");
-        };
-
-        window.rejectFriend = function(reqUid) {
-            remove(ref(database, `users/${myUid}/friend_requests/${reqUid}`));
-        };
-
-        window.inviteFriend = function(targetUid, targetName) {
-            if(!roomCode) return showToast("Önce bir odaya katılın veya kurun.", "error");
-            push(ref(database, `inbox/${targetUid}`), { from: myUsername, message: `Seni bir yayın partisine davet ediyor!`, roomCode: roomCode, type: 'invite', timestamp: serverTimestamp() });
-            showToast(`${targetName} davet edildi!`, "success");
-        };
-
-        const openInbox = () => { 
-            document.getElementById('inbox-modal').classList.add('active'); 
-            document.getElementById('btn-open-inbox').classList.remove('has-notification');
-            document.getElementById('btn-inbox-ingame').classList.remove('has-notification');
-        };
-        document.getElementById('btn-open-inbox').addEventListener('click', openInbox);
-        document.getElementById('btn-inbox-ingame').addEventListener('click', openInbox);
+        const openInbox = () => { document.getElementById('inbox-modal').classList.add('active'); document.getElementById('btn-open-inbox').classList.remove('has-notification'); document.getElementById('btn-inbox-ingame').classList.remove('has-notification'); };
+        document.getElementById('btn-open-inbox').addEventListener('click', openInbox); document.getElementById('btn-inbox-ingame').addEventListener('click', openInbox);
 
         // --- LOBİ MÜZİĞİ MANTIĞI ---
-        let isLobbyMusicPlaying = false;
-        const lobbyAudio = document.getElementById('lobby-audio');
-        lobbyAudio.volume = 0;
-
-        function fadeAudio(audio, targetVolume, duration) {
-            const steps = 20; const stepTime = duration / steps; const diff = (targetVolume - audio.volume) / steps;
-            const interval = setInterval(() => {
-                let newVol = audio.volume + diff;
-                if(newVol < 0) newVol = 0; if(newVol > 1) newVol = 1;
-                audio.volume = newVol;
-                if(Math.abs(audio.volume - targetVolume) < 0.05) { audio.volume = targetVolume; clearInterval(interval); if(targetVolume === 0) audio.pause(); }
-            }, stepTime);
-        }
-
-        window.toggleLobbyMusic = function(forceState) {
-            isLobbyMusicPlaying = forceState !== undefined ? forceState : !isLobbyMusicPlaying;
-            const btn = document.getElementById('btn-lobby-music');
-            if(isLobbyMusicPlaying) { lobbyAudio.play().catch(e => console.warn("Müzik çalma izni yok", e)); fadeAudio(lobbyAudio, 0.4, 1000); btn.classList.add('active'); } 
-            else { fadeAudio(lobbyAudio, 0, 1000); btn.classList.remove('active'); }
-        };
-
-        document.getElementById('btn-lobby-music').addEventListener('click', () => {
-            if(!isHost) return showToast("Sadece Yayıncı müziği kontrol edebilir.", "error");
-            window.toggleLobbyMusic();
-            broadcastData({ type: 'LOBBY_MUSIC', state: isLobbyMusicPlaying });
-        });
+        let isLobbyMusicPlaying = false; const lobbyAudio = document.getElementById('lobby-audio'); lobbyAudio.volume = 0;
+        function fadeAudio(audio, targetVolume, duration) { const steps = 20; const stepTime = duration / steps; const diff = (targetVolume - audio.volume) / steps; const interval = setInterval(() => { let newVol = audio.volume + diff; if(newVol < 0) newVol = 0; if(newVol > 1) newVol = 1; audio.volume = newVol; if(Math.abs(audio.volume - targetVolume) < 0.05) { audio.volume = targetVolume; clearInterval(interval); if(targetVolume === 0) audio.pause(); } }, stepTime); }
+        window.toggleLobbyMusic = function(forceState) { isLobbyMusicPlaying = forceState !== undefined ? forceState : !isLobbyMusicPlaying; const btn = document.getElementById('btn-lobby-music'); if(isLobbyMusicPlaying) { lobbyAudio.play().catch(e => console.warn("Müzik çalma izni yok", e)); fadeAudio(lobbyAudio, 0.4, 1000); btn.classList.add('active'); } else { fadeAudio(lobbyAudio, 0, 1000); btn.classList.remove('active'); } };
+        document.getElementById('btn-lobby-music').addEventListener('click', () => { if(!isHost) return showToast("Sadece Yayıncı müziği kontrol edebilir.", "error"); window.toggleLobbyMusic(); broadcastData({ type: 'LOBBY_MUSIC', state: isLobbyMusicPlaying }); });
 
         function createFaceCamUI(id, uname, stream, muted) {
             if(document.getElementById('facecam-'+id)) return;
-            const div = document.createElement('div');
-            div.id = 'facecam-' + id; div.className = 'face-cam-bubble';
+            const div = document.createElement('div'); div.id = 'facecam-' + id; div.className = 'face-cam-bubble';
             div.innerHTML = `<video autoplay playsinline ${muted ? 'muted' : ''}></video><div class="face-cam-name">${uname}</div>`;
-            document.querySelector('.video-wrapper').appendChild(div);
-            div.querySelector('video').srcObject = stream; 
-            
-            makeDraggable(div); 
-            
-            div.style.top = (40 + Math.random() * 40) + 'px'; div.style.left = (40 + Math.random() * 100) + 'px';
+            document.querySelector('.video-wrapper').appendChild(div); div.querySelector('video').srcObject = stream; 
+            makeDraggable(div); div.style.top = (40 + Math.random() * 40) + 'px'; div.style.left = (40 + Math.random() * 100) + 'px';
         }
 
         btnCamera.addEventListener('click', async () => {
             if (faceCamStream) {
-                faceCamStream.getTracks().forEach(t => t.stop()); faceCamStream = null;
-                btnCamera.classList.remove('active'); btnCamera.innerHTML = "📷 Kamera";
-                document.getElementById('facecam-local')?.remove();
-                myFaceCamCalls.forEach(c => c.close()); myFaceCamCalls = [];
-                broadcastData({ type: 'FACECAM_OFF', peerId: peer.id });
+                faceCamStream.getTracks().forEach(t => t.stop()); faceCamStream = null; btnCamera.classList.remove('active'); btnCamera.innerHTML = "📷 Kamera";
+                document.getElementById('facecam-local')?.remove(); myFaceCamCalls.forEach(c => c.close()); myFaceCamCalls = []; broadcastData({ type: 'FACECAM_OFF', peerId: peer.id });
             } else {
                 try {
                     faceCamStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-                    btnCamera.classList.add('active'); btnCamera.innerHTML = "🛑 Kamerayı Kapat";
-                    createFaceCamUI('local', myUsername, faceCamStream, true);
+                    btnCamera.classList.add('active'); btnCamera.innerHTML = "🛑 Kamerayı Kapat"; createFaceCamUI('local', myUsername, faceCamStream, true);
                     const meta = { type: 'facecam', username: myUsername, uid: myUid };
                     if (isHost) { viewers.forEach((v, pId) => { const c = peer.call(pId, faceCamStream, { metadata: meta }); myFaceCamCalls.push(c); }); } 
-                    else { 
-                        myFaceCamCalls.push(peer.call(hostId, faceCamStream, { metadata: meta }));
-                        otherPeers.forEach(pId => { myFaceCamCalls.push(peer.call(pId, faceCamStream, { metadata: meta })); });
-                    }
+                    else { myFaceCamCalls.push(peer.call(hostId, faceCamStream, { metadata: meta })); otherPeers.forEach(pId => { myFaceCamCalls.push(peer.call(pId, faceCamStream, { metadata: meta })); }); }
                 } catch(e) { showToast("Kamera izni reddedildi!", "error"); }
             }
         });
 
-        window.applyTheme = function(theme) {
-            document.body.classList.remove('theme-cinema', 'theme-cyberpunk', 'theme-derbi');
-            if (theme !== 'default') document.body.classList.add(theme);
-        };
-        document.getElementById('theme-select').addEventListener('change', (e) => {
-            currentTheme = e.target.value; window.applyTheme(currentTheme);
-            broadcastData({ type: 'THEME', theme: currentTheme });
-        });
+        window.applyTheme = function(theme) { document.body.classList.remove('theme-cinema', 'theme-cyberpunk', 'theme-derbi'); if (theme !== 'default') document.body.classList.add(theme); };
+        document.getElementById('theme-select').addEventListener('change', (e) => { currentTheme = e.target.value; window.applyTheme(currentTheme); broadcastData({ type: 'THEME', theme: currentTheme }); });
 
-        window.triggerEffect = function(type) {
-            if (type === 'scare') {
-                document.body.classList.add('jumpscare'); if(navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]); 
-                setTimeout(() => document.body.classList.remove('jumpscare'), 1500);
-            } else if (type === 'party') {
-                if(navigator.vibrate) navigator.vibrate(300);
-                for(let i=0; i<50; i++) {
-                    const conf = document.createElement('div'); conf.className = 'confetti';
-                    conf.style.left = Math.random() * 100 + 'vw'; conf.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
-                    conf.style.animationDuration = (Math.random() * 2 + 2) + 's'; document.body.appendChild(conf); setTimeout(() => conf.remove(), 4000);
-                }
-            }
-        };
-
-        window.showAdminAnnouncement = function(msg) {
-            const el = document.getElementById('admin-announcement-ui'); el.innerText = `📢 DUYURU: ${msg}`;
-            el.style.display = 'block'; el.style.animation = 'pulse 1s infinite';
-            addChatMessage("Sistem", "📢", `DUYURU: ${msg}`, false); setTimeout(() => { el.style.display = 'none'; el.style.animation = ''; }, 6000); 
-        };
+        window.triggerEffect = function(type) { if (type === 'scare') { document.body.classList.add('jumpscare'); if(navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]); setTimeout(() => document.body.classList.remove('jumpscare'), 1500); } else if (type === 'party') { if(navigator.vibrate) navigator.vibrate(300); for(let i=0; i<50; i++) { const conf = document.createElement('div'); conf.className = 'confetti'; conf.style.left = Math.random() * 100 + 'vw'; conf.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`; conf.style.animationDuration = (Math.random() * 2 + 2) + 's'; document.body.appendChild(conf); setTimeout(() => conf.remove(), 4000); } } };
+        window.showAdminAnnouncement = function(msg) { const el = document.getElementById('admin-announcement-ui'); el.innerText = `📢 DUYURU: ${msg}`; el.style.display = 'block'; el.style.animation = 'pulse 1s infinite'; addChatMessage("Sistem", "📢", `DUYURU: ${msg}`, false); setTimeout(() => { el.style.display = 'none'; el.style.animation = ''; }, 6000);  };
 
         const settingsModal = document.getElementById('settings-modal');
-        let selectedMicId = 'default', selectedSpeakerId = 'default';
-        let isPttMode = false, isWhisperMode = false, isTalking = false;
+        let selectedMicId = 'default', selectedSpeakerId = 'default'; let isPttMode = false, isWhisperMode = false, isTalking = false;
+        document.getElementById('btn-settings').addEventListener('click', () => settingsModal.classList.add('active')); document.getElementById('btn-open-login-settings').addEventListener('click', () => settingsModal.classList.add('active')); document.getElementById('btn-close-settings').addEventListener('click', () => settingsModal.classList.remove('active'));
 
-        document.getElementById('btn-settings').addEventListener('click', () => settingsModal.classList.add('active'));
-        document.getElementById('btn-open-login-settings').addEventListener('click', () => settingsModal.classList.add('active'));
-        document.getElementById('btn-close-settings').addEventListener('click', () => settingsModal.classList.remove('active'));
-
-        document.getElementById('voice-mode-select').addEventListener('change', (e) => {
-            isPttMode = (e.target.value === 'ptt');
-            if(isPttMode && micStream) { 
-                micStream.getAudioTracks().forEach(t => t.enabled = false); pttBtnMobile.style.display = 'flex'; btnMic.innerHTML = "🛑 Bas-Konuş Bekliyor"; btnMic.style.background = "#e50914"; 
-            } 
-            else { 
-                if(micStream) micStream.getAudioTracks().forEach(t => t.enabled = true); pttBtnMobile.style.display = 'none'; if(micStream) { btnMic.innerHTML = "🎤 Mikrofon Açık"; btnMic.style.background = "#4CAF50"; } 
-            }
-        });
-
+        document.getElementById('voice-mode-select').addEventListener('change', (e) => { isPttMode = (e.target.value === 'ptt'); if(isPttMode && micStream) { micStream.getAudioTracks().forEach(t => t.enabled = false); pttBtnMobile.style.display = 'flex'; btnMic.innerHTML = "🛑 Bas-Konuş Bekliyor"; btnMic.style.background = "#e50914"; } else { if(micStream) micStream.getAudioTracks().forEach(t => t.enabled = true); pttBtnMobile.style.display = 'none'; if(micStream) { btnMic.innerHTML = "🎤 Mikrofon Açık"; btnMic.style.background = "#4CAF50"; } } });
         document.getElementById('whisper-mode-toggle').addEventListener('change', (e) => isWhisperMode = e.target.checked);
-        document.getElementById('mix-video-vol').addEventListener('input', (e) => { 
-            const v = e.target.value / 100;
-            videoElement.volume = v; 
-            syncVideo.volume = v;
-            if(ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume(v * 100);
-        });
-        document.getElementById('mix-chat-vol').addEventListener('input', (e) => { 
-            const vol = e.target.value / 100; 
-            activeAudioElements.forEach(a => { 
-                if(!a.muted) {
-                    const pVol = peerVolumes[a.dataset.peerId] !== undefined ? peerVolumes[a.dataset.peerId] : 1;
-                    a.volume = (a.dataset.whisper === 'true' ? vol * 0.3 : vol) * pVol; 
-                }
-            }); 
-        });
+        document.getElementById('mix-video-vol').addEventListener('input', (e) => { const v = e.target.value / 100; videoElement.volume = v; syncVideo.volume = v; if(ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume(v * 100); });
+        document.getElementById('mix-chat-vol').addEventListener('input', (e) => { const vol = e.target.value / 100; activeAudioElements.forEach(a => { if(!a.muted) { const pVol = peerVolumes[a.dataset.peerId] !== undefined ? peerVolumes[a.dataset.peerId] : 1; a.volume = (a.dataset.whisper === 'true' ? vol * 0.3 : vol) * pVol; } }); });
 
         let isSpeakerMuted = false;
         btnSpeaker.addEventListener('click', () => {
@@ -1462,50 +1265,23 @@
             else { 
                 btnSpeaker.classList.remove('active'); btnSpeaker.innerHTML = "🔊 Sohbet"; 
                 const baseVol = document.getElementById('mix-chat-vol').value / 100;
-                activeAudioElements.forEach(a => { 
-                    a.muted = false; 
-                    const pVol = peerVolumes[a.dataset.peerId] !== undefined ? peerVolumes[a.dataset.peerId] : 1;
-                    a.volume = (a.dataset.whisper === 'true' ? baseVol * 0.3 : baseVol) * pVol; 
-                }); 
+                activeAudioElements.forEach(a => { a.muted = false; const pVol = peerVolumes[a.dataset.peerId] !== undefined ? peerVolumes[a.dataset.peerId] : 1; a.volume = (a.dataset.whisper === 'true' ? baseVol * 0.3 : baseVol) * pVol; }); 
                 showToast("Sohbet sesleri açıldı.", "info"); 
             }
         });
 
-        document.getElementById('btn-refresh-devices').addEventListener('click', async () => {
-            try {
-                await navigator.mediaDevices.getUserMedia({audio: true}); const devices = await navigator.mediaDevices.enumerateDevices();
-                const micSel = document.getElementById('mic-select'), spkSel = document.getElementById('speaker-select');
-                micSel.innerHTML = '<option value="default">Varsayılan Mikrofon</option>'; spkSel.innerHTML = '<option value="default">Varsayılan Hoparlör</option>';
-                devices.forEach(d => { if(d.kind === 'audioinput' && d.deviceId !== 'default') micSel.innerHTML += `<option value="${d.deviceId}">${d.label || 'Mikrofon '}</option>`; if(d.kind === 'audiooutput' && d.deviceId !== 'default') spkSel.innerHTML += `<option value="${d.deviceId}">${d.label || 'Hoparlör '}</option>`; });
-                showToast("Cihazlar listelendi", "success");
-            } catch(e) { showToast("Cihaz izni reddedildi!", "error"); }
-        });
-
+        document.getElementById('btn-refresh-devices').addEventListener('click', async () => { try { await navigator.mediaDevices.getUserMedia({audio: true}); const devices = await navigator.mediaDevices.enumerateDevices(); const micSel = document.getElementById('mic-select'), spkSel = document.getElementById('speaker-select'); micSel.innerHTML = '<option value="default">Varsayılan Mikrofon</option>'; spkSel.innerHTML = '<option value="default">Varsayılan Hoparlör</option>'; devices.forEach(d => { if(d.kind === 'audioinput' && d.deviceId !== 'default') micSel.innerHTML += `<option value="${d.deviceId}">${d.label || 'Mikrofon '}</option>`; if(d.kind === 'audiooutput' && d.deviceId !== 'default') spkSel.innerHTML += `<option value="${d.deviceId}">${d.label || 'Hoparlör '}</option>`; }); showToast("Cihazlar listelendi", "success"); } catch(e) { showToast("Cihaz izni reddedildi!", "error"); } });
         document.getElementById('mic-select').addEventListener('change', (e) => selectedMicId = e.target.value);
         document.getElementById('speaker-select').addEventListener('change', (e) => { selectedSpeakerId = e.target.value; if (typeof videoElement.setSinkId !== 'undefined') { videoElement.setSinkId(selectedSpeakerId).catch(()=>{}); activeAudioElements.forEach(a => a.setSinkId(selectedSpeakerId).catch(()=>{})); } });
 
-        function startTalking() { 
-            if(!isPttMode || !micStream || isTalking) return; 
-            isTalking = true; 
-            micStream.getAudioTracks().forEach(t => t.enabled = true); 
-            pttBtnMobile.classList.add('talking'); btnMic.innerHTML = "🎙️ Konuşuluyor..."; btnMic.style.background = "#4CAF50"; 
-        }
-        function stopTalking() { 
-            if(!isPttMode || !micStream || !isTalking) return; 
-            isTalking = false; 
-            micStream.getAudioTracks().forEach(t => t.enabled = false); 
-            pttBtnMobile.classList.remove('talking'); btnMic.innerHTML = "🛑 Bas-Konuş"; btnMic.style.background = "#e50914"; 
-        }
-        
-        window.addEventListener('keydown', (e) => { if (e.code === 'Space' && e.target.tagName !== 'INPUT' && isPttMode && micStream) { e.preventDefault(); startTalking(); } });
-        window.addEventListener('keyup', (e) => { if (e.code === 'Space' && e.target.tagName !== 'INPUT' && isPttMode) { e.preventDefault(); stopTalking(); } });
-        pttBtnMobile.addEventListener('mousedown', startTalking); pttBtnMobile.addEventListener('mouseup', stopTalking); pttBtnMobile.addEventListener('mouseleave', stopTalking);
-        pttBtnMobile.addEventListener('touchstart', (e) => { e.preventDefault(); startTalking(); }); pttBtnMobile.addEventListener('touchend', (e) => { e.preventDefault(); stopTalking(); });
+        function startTalking() { if(!isPttMode || !micStream || isTalking) return; isTalking = true; micStream.getAudioTracks().forEach(t => t.enabled = true); pttBtnMobile.classList.add('talking'); btnMic.innerHTML = "🎙️ Konuşuluyor..."; btnMic.style.background = "#4CAF50"; }
+        function stopTalking() { if(!isPttMode || !micStream || !isTalking) return; isTalking = false; micStream.getAudioTracks().forEach(t => t.enabled = false); pttBtnMobile.classList.remove('talking'); btnMic.innerHTML = "🛑 Bas-Konuş"; btnMic.style.background = "#e50914"; }
+        window.addEventListener('keydown', (e) => { if (e.code === 'Space' && e.target.tagName !== 'INPUT' && isPttMode && micStream) { e.preventDefault(); startTalking(); } }); window.addEventListener('keyup', (e) => { if (e.code === 'Space' && e.target.tagName !== 'INPUT' && isPttMode) { e.preventDefault(); stopTalking(); } });
+        pttBtnMobile.addEventListener('mousedown', startTalking); pttBtnMobile.addEventListener('mouseup', stopTalking); pttBtnMobile.addEventListener('mouseleave', stopTalking); pttBtnMobile.addEventListener('touchstart', (e) => { e.preventDefault(); startTalking(); }); pttBtnMobile.addEventListener('touchend', (e) => { e.preventDefault(); stopTalking(); });
 
         function showWrappedAndDisconnect() {
             if (!stats.startTime) return executeDisconnect(); 
-            const durationMins = Math.max(1, Math.floor((Date.now() - stats.startTime) / 60000));
-            let topChatter = "Kimse", maxMsgs = 0;
+            const durationMins = Math.max(1, Math.floor((Date.now() - stats.startTime) / 60000)); let topChatter = "Kimse", maxMsgs = 0;
             for(const [usr, count] of Object.entries(stats.userMsgCounts)) { if(count > maxMsgs && usr !== "Sistem") { maxMsgs = count; topChatter = usr; } }
             document.getElementById('w-stat-time').innerText = durationMins; document.getElementById('w-stat-msg').innerText = stats.myMsgCount; document.getElementById('w-stat-top').innerText = topChatter; document.getElementById('w-stat-emoji').innerText = stats.emojiCount;
             
@@ -1515,20 +1291,16 @@
             setTimeout(() => { wContainer.style.display = 'none'; executeDisconnect(); }, delay + 1000);
         }
 
-        let isTheaterMode = false;
-        document.getElementById('btn-theater').addEventListener('click', () => { isTheaterMode = !isTheaterMode; if(isTheaterMode) { mainUiContainer.classList.add('theater-mode'); showToast("Sohbet gizlendi.", "info"); } else mainUiContainer.classList.remove('theater-mode'); });
+        let isTheaterMode = false; document.getElementById('btn-theater').addEventListener('click', () => { isTheaterMode = !isTheaterMode; if(isTheaterMode) { mainUiContainer.classList.add('theater-mode'); showToast("Sohbet gizlendi.", "info"); } else mainUiContainer.classList.remove('theater-mode'); });
         document.getElementById('btn-pip').addEventListener('click', async () => { try { if (document.pictureInPictureElement) await document.exitPictureInPicture(); else await videoElement.requestPictureInPicture(); } catch (err) { showToast("Cihazınız PiP desteklemiyor.", "error"); } });
-        let isCinemaMode = false;
-        function toggleCinemaMode() { isCinemaMode = !isCinemaMode; if (isCinemaMode) { document.body.classList.add('cinema-mode'); showToast("Sinema Modu Aktif", "info"); } else document.body.classList.remove('cinema-mode'); }
+        let isCinemaMode = false; function toggleCinemaMode() { isCinemaMode = !isCinemaMode; if (isCinemaMode) { document.body.classList.add('cinema-mode'); showToast("Sinema Modu Aktif", "info"); } else document.body.classList.remove('cinema-mode'); }
         document.getElementById('btn-cinema').addEventListener('click', toggleCinemaMode); document.getElementById('btn-cinema-exit').addEventListener('click', toggleCinemaMode);
 
         function switchScreen(room, role) {
             document.getElementById('room-display').innerText = room; document.getElementById('role-display').innerText = role;
             document.getElementById('login-screen').classList.remove('active'); document.getElementById('video-screen').classList.add('active');
             chatMessages.innerHTML = ''; addChatMessage("Sistem", "💻", "Odaya katıldınız. İyi seyirler!", false);
-            stats = { startTime: Date.now(), myMsgCount: 0, totalMsgCount: 0, emojiCount: 0, userMsgCounts: {} };
-            updateMatterBounds(); 
-            wakeUpZen(); 
+            stats = { startTime: Date.now(), myMsgCount: 0, totalMsgCount: 0, emojiCount: 0, userMsgCounts: {} }; updateMatterBounds(); wakeUpZen(); 
         }
 
         function addChatMessage(sender, avatar, text, isMe, pId = null, uid = null) {
@@ -1536,11 +1308,8 @@
             if (sender === "Sistem") div.className = `message system`; else div.className = `message ${isMe ? 'me' : ''}`;
             const avatarHtml = renderAvatarHtml(avatar, uid);
             
-            if (sender === "Sistem") { 
-                div.innerHTML = `${avatarHtml} ${text}`; 
-            } else { 
-                div.innerHTML = `<div class="sender-info" onclick="window.openUserActionModal('${pId}', '${sender}', '${avatar}', '${uid}')"><span class="msg-avatar">${avatarHtml}</span> ${sender}</div><div class="msg-text">${text}</div>`; 
-            }
+            if (sender === "Sistem") { div.innerHTML = `${avatarHtml} ${text}`; } 
+            else { div.innerHTML = `<div class="sender-info" onclick="window.openUserActionModal('${pId}', '${sender}', '${avatar}', '${uid}')"><span class="msg-avatar">${avatarHtml}</span> ${sender}</div><div class="msg-text">${text}</div>`; }
             
             chatMessages.appendChild(div); chatMessages.scrollTop = chatMessages.scrollHeight; 
             stats.totalMsgCount++; if (isMe && sender !== "Sistem") stats.myMsgCount++; stats.userMsgCounts[sender] = (stats.userMsgCounts[sender] || 0) + 1;
@@ -1555,19 +1324,15 @@
             document.getElementById('voice-avatars-container').appendChild(el); return el;
         }
         function removeVoiceAvatar(id) { const el = document.getElementById('v-avatar-'+id); if(el) el.remove(); activeSpeakers.delete(id); }
+        
         function checkAudioLevels() {
             activeSpeakers.forEach((speaker) => {
                 if (speaker.analyser) {
                     const dataArray = new Uint8Array(speaker.analyser.frequencyBinCount); speaker.analyser.getByteFrequencyData(dataArray);
-                    let sum = 0; for(let i = 0; i < dataArray.length; i++) sum += dataArray[i];
-                    let average = sum / dataArray.length;
+                    let sum = 0; for(let i = 0; i < dataArray.length; i++) sum += dataArray[i]; let average = sum / dataArray.length;
                     if (average > 10) speaker.element.classList.add('speaking'); else speaker.element.classList.remove('speaking');
-                } else if (speaker.isLocal) {
-                    if (isPttMode) {
-                        if (isTalking) speaker.element.classList.add('speaking'); else speaker.element.classList.remove('speaking');
-                    } else {
-                        speaker.element.classList.add('speaking');
-                    }
+                } else if (speaker.isLocal && isPttMode) {
+                    if (isTalking) speaker.element.classList.add('speaking'); else speaker.element.classList.remove('speaking');
                 }
             });
             requestAnimationFrame(checkAudioLevels);
@@ -1575,9 +1340,10 @@
         requestAnimationFrame(checkAudioLevels);
 
         function executeDisconnect() {
+            if(roomHeartbeat) clearInterval(roomHeartbeat);
+
             if (isHost && roomCode) { 
                 const roomRef = ref(database, 'rooms/' + roomCode);
-                try { onDisconnect(roomRef).cancel(); } catch(e){} // Kasıtlı çıkış yaparken onDisconnect iptal et ve kendimiz silelim.
                 remove(roomRef); 
             }
             if (myStream) myStream.getTracks().forEach(t => t.stop()); if (micStream) micStream.getTracks().forEach(t => t.stop()); if(faceCamStream) faceCamStream.getTracks().forEach(t=>t.stop());
@@ -1603,44 +1369,31 @@
         }
         document.getElementById('leave-btn').addEventListener('click', () => { if (confirm("Odadan ayrılmak istediğinize emin misiniz?")) showWrappedAndDisconnect(); });
 
-        // Gelen Sesi İşleme
         function handleIncomingVoice(call) {
             call.answer();
             call.on('stream', audioStream => {
                 if (audioCtx.state === 'suspended') audioCtx.resume();
                 
-                const uName = call.metadata?.username || "Konuk"; 
-                const uAvatar = call.metadata?.avatar || "👤";
-                const uUid = call.metadata?.uid || "anon";
+                const uName = call.metadata?.username || "Konuk"; const uAvatar = call.metadata?.avatar || "👤"; const uUid = call.metadata?.uid || "anon";
                 let analyser = null;
 
                 if (!isMobile) {
                     const source = audioCtx.createMediaStreamSource(audioStream);
-                    analyser = audioCtx.createAnalyser(); 
-                    analyser.fftSize = 256; 
-                    source.connect(analyser); 
+                    analyser = audioCtx.createAnalyser(); analyser.fftSize = 256; source.connect(analyser); 
                 }
 
                 const el = createVoiceAvatarElement(call.peer, uName, uAvatar, uUid); 
                 activeSpeakers.set(call.peer, { analyser: analyser, element: el, isLocal: false });
 
-                const audio = document.createElement('audio'); 
-                audio.srcObject = audioStream; 
-                audio.autoplay = true; 
-                audio.playsInline = true; 
-                audio.muted = isSpeakerMuted; 
-                audio.dataset.peerId = call.peer;
+                const audio = document.createElement('audio'); audio.srcObject = audioStream; audio.autoplay = true; audio.playsInline = true; audio.muted = isSpeakerMuted; audio.dataset.peerId = call.peer;
                 
                 const isWhisper = call.metadata?.whisper; audio.dataset.whisper = isWhisper ? 'true' : 'false';
-                
                 if(typeof audio.setSinkId !== 'undefined' && selectedSpeakerId !== 'default') audio.setSinkId(selectedSpeakerId).catch(()=>{});
                 
-                const baseVol = document.getElementById('mix-chat-vol').value / 100; 
-                const pVol = peerVolumes[call.peer] !== undefined ? peerVolumes[call.peer] : 1;
+                const baseVol = document.getElementById('mix-chat-vol').value / 100; const pVol = peerVolumes[call.peer] !== undefined ? peerVolumes[call.peer] : 1;
                 audio.volume = (isWhisper ? baseVol * 0.3 : baseVol) * pVol;
                 
                 document.body.appendChild(audio); activeAudioElements.push(audio);
-                
                 audio.play().catch(e => console.warn("Ses otomatik oynatılamadı. Cihaz etkileşimi bekleniyor.", e));
 
                 call.on('close', () => { audio.remove(); removeVoiceAvatar(call.peer); activeAudioElements = activeAudioElements.filter(a => a !== audio); });
@@ -1652,11 +1405,9 @@
                 micStream.getTracks().forEach(t => t.stop()); micStream = null;
                 btnMic.classList.remove('active'); btnMic.innerHTML = "🎤<span class='hide-on-mobile'> Mikrofon</span>"; btnMic.style.background = "#444";
                 activeVoiceCalls.forEach(call => call.close()); activeVoiceCalls.clear(); pttBtnMobile.style.display = 'none';
-                removeVoiceAvatar('local'); localAnalyser = null; 
-                
+                removeVoiceAvatar('local'); 
                 if (audioCtxProcessing) { audioCtxProcessing.close(); audioCtxProcessing = null; }
                 currentProcessedStream = null;
-
                 globalMicEnabled = false; 
                 showToast("Mikrofon kapatıldı.", "info");
             } else {
@@ -1673,83 +1424,42 @@
                     
                     currentProcessedStream = applyVoiceEffect(micStream);
 
-                    if (!isMobile) {
-                        if (audioCtx.state === 'suspended') audioCtx.resume();
-                        const source = audioCtx.createMediaStreamSource(micStream);
-                        localAnalyser = audioCtx.createAnalyser(); localAnalyser.fftSize = 256; source.connect(localAnalyser);
-                    }
+                    // YANKI ÇÖZÜMÜ: Yerel mikrofonu kesinlikle AudioContext'e (localAnalyser) bağlamıyoruz!
                     
                     const el = createVoiceAvatarElement('local', myUsername, myAvatar, myUid); 
-                    activeSpeakers.set('local', { analyser: localAnalyser, element: el, isLocal: true });
+                    activeSpeakers.set('local', { analyser: null, element: el, isLocal: true });
                     
                     showToast("Sese bağlanıldı!", "success");
-
                     globalMicEnabled = true; 
 
                     const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid };
                     
-                    if (isHost) { 
-                        viewers.forEach((v, pId) => { 
-                            const call = peer.call(pId, currentProcessedStream, { metadata: voiceMeta }); 
-                            activeVoiceCalls.set(pId, call); 
-                        }); 
-                    } 
+                    if (isHost) { viewers.forEach((v, pId) => { activeVoiceCalls.set(pId, peer.call(pId, currentProcessedStream, { metadata: voiceMeta })); }); } 
                     else { 
-                        const callHost = peer.call(hostId, currentProcessedStream, { metadata: voiceMeta }); 
-                        activeVoiceCalls.set(hostId, callHost); 
-                        
-                        otherPeers.forEach(pId => {
-                            const callPeer = peer.call(pId, currentProcessedStream, { metadata: voiceMeta });
-                            activeVoiceCalls.set(pId, callPeer);
-                        });
+                        activeVoiceCalls.set(hostId, peer.call(hostId, currentProcessedStream, { metadata: voiceMeta })); 
+                        otherPeers.forEach(pId => { activeVoiceCalls.set(pId, peer.call(pId, currentProcessedStream, { metadata: voiceMeta })); });
                     }
                 } catch (e) { showToast("Mikrofon erişimi reddedildi!", "error"); }
             }
         });
 
-        // Veri Gönderim Fonksiyonu
-        function broadcastData(data) {
-            if (isHost) viewers.forEach(v => v.conn.send(data));
-            else if (hostConnection?.open) hostConnection.send(data);
-        }
-
+        function broadcastData(data) { if (isHost) viewers.forEach(v => v.conn.send(data)); else if (hostConnection?.open) hostConnection.send(data); }
         const broadcastPeersList = () => { if(isHost) { const peers = Array.from(viewers.keys()); viewers.forEach(v => v.conn.send({ type: 'PEER_LIST', peers: peers.filter(p => p !== v.conn.peer) })); } };
 
         function handleIncomingData(data, conn = null) {
             if (data.type === 'CHAT') { addChatMessage(data.sender, data.avatar, data.text, false, data.peerId, data.uid); if (isHost && conn) viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); }); } 
             else if (data.type === 'AVATAR_UPDATE') { updateAvatarsInUI(data.uid, data.avatar); if (isHost && conn) viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); }); }
-            else if (data.type === 'PHYSICS_EMOJI') { 
-                const dropX = data.xRatio * matterCanvas.width; const dropY = data.yRatio * matterCanvas.height;
-                spawnPhysicsEmoji(data.emoji, dropX, dropY, data.vx, data.vy, false);
-                if (isHost && conn) viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); });
-            }
-            else if (data.type === 'SYNC_MEDIA_START' || data.type === 'SYNC_MEDIA_STOP' || data.type === 'SYNC_MEDIA') {
-                handleIncomingSyncCommand(data);
-                if (isHost && conn) viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); });
-            }
+            else if (data.type === 'PHYSICS_EMOJI') { const dropX = data.xRatio * matterCanvas.width; const dropY = data.yRatio * matterCanvas.height; spawnPhysicsEmoji(data.emoji, dropX, dropY, data.vx, data.vy, false); if (isHost && conn) viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); }); }
+            else if (data.type === 'SYNC_MEDIA_START' || data.type === 'SYNC_MEDIA_STOP' || data.type === 'SYNC_MEDIA') { handleIncomingSyncCommand(data); if (isHost && conn) viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); }); }
             else if (data.type === 'CLEAR_CHAT') { chatMessages.innerHTML = ''; showToast("Sohbet temizlendi.", "info"); }
             else if (data.type === 'KICK') { showToast("Odadan atıldınız!", "error"); setTimeout(showWrappedAndDisconnect, 1000); }
             else if (data.type === 'ADMIN_MSG') { window.showAdminAnnouncement(data.text); }
             else if (data.type === 'THEME') { window.applyTheme(data.theme); } 
             else if (data.type === 'LOBBY_MUSIC') { window.toggleLobbyMusic(data.state); }
             else if (data.type === 'PEER_LIST') { 
-                const newPeers = data.peers.filter(p => !otherPeers.includes(p));
-                otherPeers = data.peers; 
-                
-                if (faceCamStream && !isHost) {
-                    const camMeta = { type: 'facecam', username: myUsername, uid: myUid };
-                    newPeers.forEach(pId => { myFaceCamCalls.push(peer.call(pId, faceCamStream, { metadata: camMeta })); });
-                }
-
-                if (globalMicEnabled && currentProcessedStream && !isHost) {
-                    const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid };
-                    newPeers.forEach(pId => {
-                        if (!activeVoiceCalls.has(pId)) {
-                            const c = peer.call(pId, currentProcessedStream, { metadata: voiceMeta });
-                            activeVoiceCalls.set(pId, c);
-                        }
-                    });
-                }
+                const newPeers = data.peers.filter(p => !otherPeers.includes(p)); otherPeers = data.peers; 
+                if (faceCamStream && !isHost) { const camMeta = { type: 'facecam', username: myUsername, uid: myUid }; newPeers.forEach(pId => { myFaceCamCalls.push(peer.call(pId, faceCamStream, { metadata: camMeta })); }); }
+                if (globalMicEnabled && currentProcessedStream && !isHost) { const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid }; newPeers.forEach(pId => { if (!activeVoiceCalls.has(pId)) { activeVoiceCalls.set(pId, peer.call(pId, currentProcessedStream, { metadata: voiceMeta })); } }); }
             }
             else if (data.type === 'FACECAM_OFF') { document.getElementById('facecam-'+data.peerId)?.remove(); if (isHost) viewers.forEach(v => { if(v.conn.peer !== conn.peer) v.conn.send(data); }); }
             else if (data.type === 'EFFECT') { window.triggerEffect(data.effect); if (isHost && conn) viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); }); }
@@ -1758,13 +1468,9 @@
 
         function setupPeerListeners() {
             peer.on('call', call => {
-                if (call.metadata?.type === 'screen') {
-                    call.answer(); call.on('stream', rStream => { videoElement.srcObject = rStream; statusText.innerText = "Bağlı"; videoElement.onloadedmetadata = () => { videoElement.play().catch(() => playOverlay.style.display = 'flex'); }; });
-                } else if (call.metadata?.type === 'voice') { handleIncomingVoice(call); }
-                else if (call.metadata?.type === 'facecam') {
-                    call.answer(); call.on('stream', s => { createFaceCamUI(call.peer, call.metadata.username, s, false); });
-                    call.on('close', () => { document.getElementById('facecam-'+call.peer)?.remove(); });
-                }
+                if (call.metadata?.type === 'screen') { call.answer(); call.on('stream', rStream => { videoElement.srcObject = rStream; statusText.innerText = "Bağlı"; videoElement.onloadedmetadata = () => { videoElement.play().catch(() => playOverlay.style.display = 'flex'); }; }); } 
+                else if (call.metadata?.type === 'voice') { handleIncomingVoice(call); }
+                else if (call.metadata?.type === 'facecam') { call.answer(); call.on('stream', s => { createFaceCamUI(call.peer, call.metadata.username, s, false); }); call.on('close', () => { document.getElementById('facecam-'+call.peer)?.remove(); }); }
             });
 
             peer.on('connection', conn => {
@@ -1777,79 +1483,61 @@
                     if(currentTheme !== 'default') conn.send({ type: 'THEME', theme: currentTheme });
                     if(isLobbyMusicPlaying) conn.send({ type: 'LOBBY_MUSIC', state: true });
                     
-                    if(syncActive) {
-                        const ytUrl = ytPlayer && ytPlayer.getVideoUrl ? ytPlayer.getVideoUrl() : null;
-                        const vUrl = syncVideo.src;
-                        conn.send({ type: 'SYNC_MEDIA_START', url: ytUrl || vUrl });
-                    }
+                    if(syncActive) { const ytUrl = ytPlayer && ytPlayer.getVideoUrl ? ytPlayer.getVideoUrl() : null; const vUrl = syncVideo.src; conn.send({ type: 'SYNC_MEDIA_START', url: ytUrl || vUrl }); }
 
                     if (myStream) peer.call(conn.peer, myStream, { metadata: { type: 'screen' } });
-                    if (globalMicEnabled && currentProcessedStream) { 
-                        const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid }; 
-                        const vCall = peer.call(conn.peer, currentProcessedStream, { metadata: voiceMeta }); 
-                        activeVoiceCalls.set(conn.peer, vCall); 
-                    }
+                    if (globalMicEnabled && currentProcessedStream) { const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid }; activeVoiceCalls.set(conn.peer, peer.call(conn.peer, currentProcessedStream, { metadata: voiceMeta })); }
                     if (faceCamStream) { myFaceCamCalls.push(peer.call(conn.peer, faceCamStream, { metadata: { type: 'facecam', username: myUsername, uid: myUid } })); }
                 });
 
                 conn.on('data', data => handleIncomingData(data, conn));
-                conn.on('close', () => { 
-                    if (!isHost) return; const vData = viewers.get(conn.peer); if(vData) showToast(`${vData.username} odadan ayrıldı.`, "info");
-                    viewers.delete(conn.peer); updateAdminPanel(); broadcastPeersList();
-                });
+                conn.on('close', () => { if (!isHost) return; const vData = viewers.get(conn.peer); if(vData) showToast(`${vData.username} odadan ayrıldı.`, "info"); viewers.delete(conn.peer); updateAdminPanel(); broadcastPeersList(); });
             });
         }
 
-        // --- GÜNCELLEME 2: AYNI ODADA 2 YAYINCIYI ve YENİDEN ÜZERİNE YAZMAYI ENGELLEME ---
         window.startHostingProcess = async function(mode) {
             roomCode = document.getElementById('room-input').value.trim(); myUsername = document.getElementById('username-input').value.trim() || "Yayıncı";
             if(!roomCode) return showToast("Lütfen Oda Kodu girin!", "error");
 
-            // ODA KODU ÇAKILIŞMA KONTROLÜ
             try {
                 const roomSnap = await get(ref(database, 'rooms/' + roomCode));
                 if (roomSnap.exists()) {
-                    return showToast("⚠️ Bu oda kodu zaten kullanımda! Lütfen başka bir kod deneyin.", "error");
+                    const rData = roomSnap.val();
+                    const lastActive = rData.lastActive || rData.createdAt || Date.now();
+                    
+                    if (Date.now() - lastActive < 15 * 60 * 1000) {
+                        return showToast("⚠️ Bu oda kodu aktif kullanımda! Lütfen başka bir kod girin.", "error");
+                    } else {
+                        showToast("Ölü oda temizleniyor, yeni oda kuruluyor...", "info");
+                    }
                 }
-            } catch(e) {
-                console.error("Oda kontrol hatası:", e);
-                return showToast("Bağlantı hatası, odayı kontrol edemiyoruz.", "error");
-            }
+            } catch(e) { return showToast("Oda kontrolü yapılamadı.", "error"); }
 
             isHost = true; document.getElementById('admin-panel').style.display = 'block'; 
 
             if (mode === 'screen') {
                 if (isMobile) return showToast("Ekran paylaşımı mobilde desteklenmiyor.", "error");
                 try {
-                    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) throw new Error("API Desteklenmiyor");
+                    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) throw new Error("API");
                     myStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-                } catch (err) {
-                    try { myStream = await navigator.mediaDevices.getDisplayMedia({ video: true }); showToast("Sistem sesi aktarılamıyor, sessiz yayın başladı.", "info"); } 
-                    catch (err2) {
-                        showToast("Ekran paylaşımı reddedildi.", "error"); return;
-                    }
-                }
-                videoElement.srcObject = myStream; videoElement.muted = true;
-                videoElement.style.display = 'block'; syncMediaContainer.style.display = 'none';
+                } catch (err) { try { myStream = await navigator.mediaDevices.getDisplayMedia({ video: true }); showToast("Sistem sesi aktarılamıyor, sessiz yayın.", "info"); } catch (err2) { return showToast("Ekran paylaşımı reddedildi.", "error"); } }
+                videoElement.srcObject = myStream; videoElement.muted = true; videoElement.style.display = 'block'; syncMediaContainer.style.display = 'none';
                 if(myStream.getVideoTracks().length > 0) myStream.getVideoTracks()[0].onended = () => { showToast("Paylaşım durduruldu.", "error"); showWrappedAndDisconnect(); };
             } else {
-                myStream = null;
-                videoElement.style.display = 'none'; syncMediaContainer.style.display = 'block';
-                document.getElementById('sync-media-modal').classList.add('active');
+                myStream = null; videoElement.style.display = 'none'; syncMediaContainer.style.display = 'block'; document.getElementById('sync-media-modal').classList.add('active');
             }
 
             peer = new Peer(); 
             peer.on('open', (id) => { 
                 hostId = id;
                 const roomRef = ref(database, 'rooms/' + roomCode);
-                set(roomRef, { hostId: hostId, hostName: myUsername, createdAt: serverTimestamp() }).then(() => {
-                    // --- GÜNCELLEME 1: HAYALET ODALARI (GHOST ROOMS) ENGELLEME ---
-                    // Yayıncı sekmeyi kapattığında Firebase bu odayı otomatik olarak siler.
-                    onDisconnect(roomRef).remove(); 
+                
+                // 15 dk kapanma kontrolü için lastActive set ediliyor
+                set(roomRef, { hostId: hostId, hostName: myUsername, createdAt: serverTimestamp(), lastActive: Date.now() }).then(() => {
+                    startRoomHeartbeat(); // Her dakika veritabanında yaşadığını belirt
                 });
                 
-                statusText.innerText = "Yayın Aktif!"; switchScreen(roomCode, "Yayıncı"); showToast("Oda başarıyla kuruldu.", "success"); 
-                window.applyTheme(currentTheme); 
+                statusText.innerText = "Yayın Aktif!"; switchScreen(roomCode, "Yayıncı"); showToast("Oda başarıyla kuruldu.", "success"); window.applyTheme(currentTheme); 
             });
             setupPeerListeners();
         };
@@ -1863,10 +1551,7 @@
             hostConnection.on('open', () => { statusText.innerText = "Görüntü bekleniyor..."; showToast("Yayıncıya bağlanıldı!", "success"); });
             hostConnection.on('data', handleIncomingData);
             
-            if (globalMicEnabled && currentProcessedStream) { 
-                const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid }; 
-                activeVoiceCalls.set(targetHostId, peer.call(targetHostId, currentProcessedStream, { metadata: voiceMeta })); 
-            }
+            if (globalMicEnabled && currentProcessedStream) { const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid }; activeVoiceCalls.set(targetHostId, peer.call(targetHostId, currentProcessedStream, { metadata: voiceMeta })); }
             if (faceCamStream) { const camMeta = { type: 'facecam', username: myUsername, uid: myUid }; myFaceCamCalls.push(peer.call(targetHostId, faceCamStream, { metadata: camMeta })); }
         };
 
@@ -1877,27 +1562,25 @@
 
             get(ref(database, 'rooms/' + roomCode)).then((snapshot) => {
                 if(!snapshot.exists()) return showToast("Böyle bir oda bulunamadı!", "error");
-                hostId = snapshot.val().hostId;
                 
-                statusText.innerText = "Bağlanılıyor...";
-                switchScreen(roomCode, "İzleyici");
+                const rData = snapshot.val();
+                const lastActive = rData.lastActive || rData.createdAt || Date.now();
+                
+                // --- 15 DAKİKA KONTROLÜ (İzleyici katılırken) ---
+                if (Date.now() - lastActive > 15 * 60 * 1000) {
+                    remove(ref(database, 'rooms/' + roomCode));
+                    return showToast("Bu oda 15 dakikadan uzun süredir boş olduğu için kapatıldı!", "error");
+                }
+
+                hostId = rData.hostId;
+                statusText.innerText = "Bağlanılıyor..."; switchScreen(roomCode, "İzleyici");
                 
                 peer = new Peer(); 
                 peer.on('open', () => { statusText.innerText = "Yayıncı aranıyor..."; window.connectToNewHost(hostId); });
                 setupPeerListeners();
                 
-                // --- İZLEYİCİ ATILMA MESAJI GÜNCELLEMESİ ---
-                peer.on('error', err => { 
-                    if (err.type === 'peer-unavailable') { 
-                        showToast("Yayıncıya ulaşılamıyor (Oda kapanmış olabilir)!", "error"); 
-                        setTimeout(executeDisconnect, 2500); 
-                    } 
-                });
-                
-            }).catch(error => {
-                console.error("Firebase/Kod Hatası:", error);
-                showToast("Oda kontrol edilemedi.", "error");
-            });
+                peer.on('error', err => { if (err.type === 'peer-unavailable') { showToast("Yayıncıya ulaşılamıyor (Oda kapanmış olabilir)!", "error"); setTimeout(executeDisconnect, 2500); } });
+            }).catch(error => { showToast("Oda kontrol edilemedi.", "error"); });
         });
 
         document.getElementById('force-play-btn').addEventListener('click', () => { playOverlay.style.display = 'none'; videoElement.play(); if(syncActive && !isHost) syncVideo.play(); });
@@ -1906,35 +1589,27 @@
             const text = chatInput.value.trim(); if(!text) return;
             if (text.startsWith('/')) {
                 if (!isHost) { showToast("Bu komutları sadece oda kurucusu kullanabilir!", "error"); chatInput.value = ''; return; }
-                if (text === '/zar' || text === '/roll') { const dice = Math.floor(Math.random() * 6) + 1; const msg = `🎲 Zar atıldı ve ${dice} geldi!`; const msgData = { type: 'CHAT', sender: "Sistem", avatar: "🤖", text: msg }; broadcastData(msgData); addChatMessage("Sistem", "🤖", msg, false); chatInput.value = ''; return; }
-                if (text.startsWith('/admin ')) { const msg = text.replace('/admin ', ''); const msgData = { type: 'ADMIN_MSG', text: msg }; broadcastData(msgData); window.showAdminAnnouncement(msg); chatInput.value = ''; return; }
+                if (text === '/zar' || text === '/roll') { const dice = Math.floor(Math.random() * 6) + 1; const msg = `🎲 Zar atıldı ve ${dice} geldi!`; broadcastData({ type: 'CHAT', sender: "Sistem", avatar: "🤖", text: msg }); addChatMessage("Sistem", "🤖", msg, false); chatInput.value = ''; return; }
+                if (text.startsWith('/admin ')) { const msg = text.replace('/admin ', ''); broadcastData({ type: 'ADMIN_MSG', text: msg }); window.showAdminAnnouncement(msg); chatInput.value = ''; return; }
                 if (text === '/korku' || text === '/boo') { window.triggerEffect('scare'); broadcastData({ type: 'EFFECT', effect: 'scare' }); chatInput.value = ''; return; }
                 if (text === '/party') { window.triggerEffect('party'); broadcastData({ type: 'EFFECT', effect: 'party' }); chatInput.value = ''; return; }
                 showToast("Geçersiz komut!", "error"); return;
             }
-            const msgData = { type: 'CHAT', sender: myUsername, avatar: myAvatar, text: text, peerId: (peer?peer.id:''), uid: myUid };
-            broadcastData(msgData);
-            addChatMessage(myUsername, myAvatar, text, true, (peer?peer.id:''), myUid);
-            chatInput.value = '';
+            broadcastData({ type: 'CHAT', sender: myUsername, avatar: myAvatar, text: text, peerId: (peer?peer.id:''), uid: myUid }); addChatMessage(myUsername, myAvatar, text, true, (peer?peer.id:''), myUid); chatInput.value = '';
         }
 
-        document.getElementById('chat-send-btn').addEventListener('click', sendMessage);
-        document.getElementById('chat-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') sendMessage(); });
+        document.getElementById('chat-send-btn').addEventListener('click', sendMessage); document.getElementById('chat-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') sendMessage(); });
 
         window.becomeHost = async function(mode = 'screen') {
             isHost = true; document.getElementById('admin-panel').style.display = 'block';
             if (hostConnection) hostConnection.close(); showToast("Yayıncı yetkisi size geçti! Lütfen yayını başlatın.", "success");
             
-            const roomRef = ref(database, 'rooms/' + roomCode);
-            onDisconnect(roomRef).remove(); // Yeni host tabı kapatırsa koruma devrede
+            startRoomHeartbeat(); // Yeni host kalp atışını devralır
 
             if (mode === 'screen') {
                 try { myStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true }); } catch (err) { try { myStream = await navigator.mediaDevices.getDisplayMedia({ video: true }); } catch (err2) { return showToast("Ekran paylaşım izni verilmedi!", "error"); } }
                 videoElement.srcObject = myStream; videoElement.muted = true; 
-            } else {
-                myStream = null; videoElement.style.display = 'none'; syncMediaContainer.style.display = 'block';
-                document.getElementById('sync-media-modal').classList.add('active');
-            }
+            } else { myStream = null; videoElement.style.display = 'none'; syncMediaContainer.style.display = 'block'; document.getElementById('sync-media-modal').classList.add('active'); }
             document.getElementById('role-display').innerText = "Yayıncı";
         };
 
@@ -1943,9 +1618,9 @@
             if(t && confirm(`${t.username} adlı kullanıcıyı yeni Yayıncı yapmak istiyor musunuz?`)) {
                 
                 const roomRef = ref(database, 'rooms/' + roomCode);
-                onDisconnect(roomRef).cancel(); // Eski host gidiyor, odanın silinmesi komutunu iptal et!
+                if(roomHeartbeat) clearInterval(roomHeartbeat); // Kendi kalp atışımı durduruyorum
 
-                set(roomRef, { hostId: targetPeerId, hostName: t.username, createdAt: serverTimestamp() }).then(() => {
+                set(roomRef, { hostId: targetPeerId, hostName: t.username, createdAt: serverTimestamp(), lastActive: Date.now() }).then(() => {
                     broadcastData({ type: 'HOST_TRANSFER', newHostId: targetPeerId });
                     isHost = false; document.getElementById('admin-panel').style.display = 'none';
                     if (myStream) myStream.getTracks().forEach(track => track.stop()); myStream = null;
