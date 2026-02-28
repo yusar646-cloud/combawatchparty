@@ -63,6 +63,15 @@
         .ticket-item input { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.5); color: white; margin: 8px 0; outline:none; }
         .friend-btn { background: var(--primary); color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold;}
         body.theme-derbi .friend-btn { color: #000; }
+        
+        /* BİLDİRİM NOKTASI */
+        .has-notification { position: relative; }
+        .has-notification::after {
+            content: ''; position: absolute; top: -2px; right: -2px; width: 12px; height: 12px;
+            background-color: #e50914; border-radius: 50%; border: 2px solid #fff;
+            animation: pulse-red 1.5s infinite; z-index: 10;
+        }
+        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(229,9,20, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(229,9,20, 0); } 100% { box-shadow: 0 0 0 0 rgba(229,9,20, 0); } }
 
         /* BİREYSEL KULLANICI MODALI */
         .user-action-header { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }
@@ -124,9 +133,9 @@
         .v-avatar.speaking { border-color: #4CAF50; box-shadow: 0 0 15px rgba(76, 175, 80, 0.9); transform: translateY(-5px) scale(1.1); }
         .v-avatar .v-name { position: absolute; bottom: -20px; font-size: 0.7rem; background: rgba(0,0,0,0.8); color: white; padding: 2px 6px; border-radius: 4px; white-space: nowrap; font-weight: bold; border: 1px solid #444; }
 
-        /* YÜZEN REAKSİYON KAMERALARI */
-        .face-cam-bubble { position: absolute; top: 20px; right: 20px; width: 130px; height: 130px; border-radius: 50%; border: 3px solid var(--primary); overflow: hidden; box-shadow: 0 5px 20px rgba(0,0,0,0.8); z-index: 1000; cursor: grab; background: #000; transition: transform 0.2s ease-out; }
-        .face-cam-bubble:active { cursor: grabbing; transform: scale(1.05); }
+        /* YÜZEN REAKSİYON KAMERALARI (YENİLENDİ: BOYUTLANDIRILABİLİR & SÜRÜKLENEBİLİR) */
+        .face-cam-bubble { position: absolute; top: 20px; right: 20px; width: 140px; height: 140px; min-width: 80px; min-height: 80px; max-width: 400px; max-height: 400px; border-radius: 15px; border: 3px solid var(--primary); overflow: hidden; box-shadow: 0 5px 20px rgba(0,0,0,0.8); z-index: 1000; cursor: grab; background: #000; transition: border-color 0.2s ease-out; resize: both; }
+        .face-cam-bubble:active { cursor: grabbing; border-color: #4CAF50; }
         .face-cam-bubble video { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
         .face-cam-name { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); font-size: 0.75rem; color: #fff; background: rgba(0,0,0,0.7); padding: 3px 8px; border-radius: 10px; font-weight: bold; pointer-events: none; white-space: nowrap; }
 
@@ -243,6 +252,10 @@
 </head>
 <body>
 
+    <audio id="notif-audio" preload="auto">
+        <source src="https://cdn.freesound.org/previews/352/352661_4019029-lq.mp3" type="audio/mpeg">
+    </audio>
+
     <audio id="lobby-audio" loop preload="auto">
         <source src="https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=lofi-study-112191.mp3" type="audio/mpeg">
     </audio>
@@ -303,6 +316,12 @@
             </div>
 
             <div id="content-friends" class="tab-content">
+                <div id="friend-requests-container">
+                    <h4 style="margin:0 0 10px 0; font-size:0.9rem; color:var(--primary);">Bekleyen İstekler</h4>
+                    <div id="friend-requests-list" style="max-height: 150px; overflow-y: auto; margin-bottom: 15px;">Yükleniyor...</div>
+                    <hr style="border-top:1px solid var(--border-color); margin:15px 0;">
+                </div>
+                <h4 style="margin:0 0 10px 0; font-size:0.9rem; color:#aaa;">Arkadaş Listesi</h4>
                 <p style="font-size:0.8rem; color:#aaa; margin-bottom:10px;">Buradan arkadaşlarınıza direkt "Odaya Gel" davetiyesi yollayabilirsiniz.</p>
                 <div id="friends-list" style="max-height: 300px; overflow-y: auto;">Yükleniyor...</div>
             </div>
@@ -642,7 +661,7 @@
 
         const activeSpeakers = new Map();
 
-        // --- SES DEĞİŞTİRİCİ (VOICE CHANGER) YENİLENMİŞ MOTOR ---
+        // --- SES DEĞİŞTİRİCİ (VOICE CHANGER) ---
         let currentVoiceEffect = 'none';
         let audioCtxProcessing = null;
 
@@ -660,9 +679,9 @@
         }
 
         function applyVoiceEffect(rawStream) {
+            // YANKI ÇÖZÜMÜ: Mobilde kesinlikle WebAudio işlemine sokma, native cihaz yankı iptali devrede kalsın
             if (isMobile || currentVoiceEffect === 'none') return rawStream;
 
-            // Eski context'i temizle, yankı döngüsünü engelle
             if (audioCtxProcessing) {
                 audioCtxProcessing.close();
             }
@@ -708,19 +727,37 @@
             return dest.stream;
         }
 
-        // Özel Avatar Formatlama
-        function renderAvatarHtml(avatarData) {
+        // Özel Avatar Formatlama (Güncellendi: UID sınıfı atayarak anlık güncellemeyi kolaylaştırdık)
+        function renderAvatarHtml(avatarData, uid = '') {
             if(avatarData && avatarData.startsWith('data:image')) {
-                return `<img src="${avatarData}">`;
+                return `<img src="${avatarData}" class="avatar-uid-${uid}" data-uid="${uid}">`;
             }
-            return avatarData || "👤";
+            return `<span class="avatar-uid-${uid}" data-uid="${uid}">${avatarData || "👤"}</span>`;
+        }
+        
+        // Gerçek Zamanlı UI Avatar Güncellemesi
+        function updateAvatarsInUI(uid, newAvatarHtml) {
+            document.querySelectorAll(`.avatar-uid-${uid}`).forEach(el => {
+                if (newAvatarHtml.startsWith('data:image')) {
+                    if(el.tagName === 'IMG') el.src = newAvatarHtml;
+                    else el.outerHTML = `<img src="${newAvatarHtml}" class="avatar-uid-${uid}" data-uid="${uid}">`;
+                } else {
+                    if(el.tagName === 'SPAN') el.innerText = newAvatarHtml;
+                    else el.outerHTML = `<span class="avatar-uid-${uid}" data-uid="${uid}">${newAvatarHtml}</span>`;
+                }
+            });
+            // Ayrıca Modal ve Admin panellerini doğrudan tetikle
+            if(document.getElementById('ua-avatar') && selectedActionPeerId) {
+                // Sadece açık olan modal bu kişiyse
+                // ID eşleşmesini kontrol etmek biraz zor ama DOM ile güncellenmiş olmalı
+            }
         }
 
         // --- BİREYSEL KULLANICI MODALI ---
         let selectedActionPeerId = null;
         window.openUserActionModal = function(pId, pName, pAvatar, pUid) {
             selectedActionPeerId = pId;
-            document.getElementById('ua-avatar').innerHTML = renderAvatarHtml(pAvatar);
+            document.getElementById('ua-avatar').innerHTML = renderAvatarHtml(pAvatar, pUid);
             document.getElementById('ua-name').innerText = pName;
             document.getElementById('ua-role').innerText = pId === hostId ? "Yayıncı" : "İzleyici";
             
@@ -868,7 +905,62 @@
             }
         }
 
+        // --- SÜRÜKLE BIRAK YARDIMCI FONKSİYONU ---
+        function makeDraggable(el) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            el.onmousedown = dragMouseDown;
+            el.addEventListener('touchstart', dragTouchStart, {passive: false});
+
+            function isResizeHandle(e) {
+                // Sağ alt köşeye basıldıysa sürüklemeyi iptal et ki boyutlandırılabilsin
+                const rect = el.getBoundingClientRect();
+                const isRight = (e.clientX || (e.touches && e.touches[0].clientX)) > rect.right - 20;
+                const isBottom = (e.clientY || (e.touches && e.touches[0].clientY)) > rect.bottom - 20;
+                return isRight && isBottom;
+            }
+
+            function dragMouseDown(e) {
+                if(isResizeHandle(e)) return; 
+                e.preventDefault();
+                pos3 = e.clientX; pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+            }
+            function dragTouchStart(e) {
+                if(isResizeHandle(e)) return;
+                pos3 = e.touches[0].clientX; pos4 = e.touches[0].clientY;
+                document.addEventListener('touchend', closeDragTouch);
+                document.addEventListener('touchmove', elementTouchDrag, {passive: false});
+            }
+            function elementDrag(e) {
+                e.preventDefault();
+                pos1 = pos3 - e.clientX; pos2 = pos4 - e.clientY;
+                pos3 = e.clientX; pos4 = e.clientY;
+                el.style.top = (el.offsetTop - pos2) + "px"; el.style.left = (el.offsetLeft - pos1) + "px";
+            }
+            function elementTouchDrag(e) {
+                pos1 = pos3 - e.touches[0].clientX; pos2 = pos4 - e.touches[0].clientY;
+                pos3 = e.touches[0].clientX; pos4 = e.touches[0].clientY;
+                el.style.top = (el.offsetTop - pos2) + "px"; el.style.left = (el.offsetLeft - pos1) + "px";
+            }
+            function closeDragElement() { document.onmouseup = null; document.onmousemove = null; }
+            function closeDragTouch() { document.removeEventListener('touchend', closeDragTouch); document.removeEventListener('touchmove', elementTouchDrag); }
+        }
+
         // --- DİĞER FONKSİYONLAR ---
+        function avatarChangedRoutine(newAvatar) {
+            myAvatar = newAvatar;
+            if(auth.currentUser) set(ref(database, 'users/' + auth.currentUser.uid + '/avatar'), myAvatar);
+            
+            // Tüm sayfadaki avatarlarımı güncelle
+            updateAvatarsInUI(myUid, myAvatar);
+
+            // Yayındakilere bildir
+            if (peer && !peer.destroyed) {
+                broadcastData({ type: 'AVATAR_UPDATE', peerId: peer.id, uid: myUid, avatar: myAvatar });
+            }
+        }
+
         document.getElementById('custom-avatar-upload').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -882,7 +974,6 @@
                     ctx.drawImage(img, 0, 0, 128, 128);
                     
                     const base64Data = canvas.toDataURL('image/jpeg', 0.7);
-                    myAvatar = base64Data;
                     
                     document.querySelectorAll('.avatar-option').forEach(a => a.classList.remove('selected'));
                     const customOpt = document.createElement('div');
@@ -890,13 +981,21 @@
                     customOpt.innerHTML = `<img src="${base64Data}">`;
                     document.getElementById('avatar-selector-container').appendChild(customOpt);
                     
-                    if(auth.currentUser) set(ref(database, 'users/' + auth.currentUser.uid + '/avatar'), myAvatar);
-                    
-                    showToast("Özel avatarınız yüklendi ve kaydedildi!", "success");
+                    avatarChangedRoutine(base64Data);
+                    showToast("Özel avatarınız yüklendi ve herkese güncellendi!", "success");
                 };
                 img.src = evt.target.result;
             };
             reader.readAsDataURL(file);
+        });
+
+        document.querySelectorAll('.avatar-option').forEach(el => { 
+            el.addEventListener('click', () => { 
+                document.querySelectorAll('.avatar-option').forEach(a => a.classList.remove('selected')); 
+                el.classList.add('selected'); 
+                avatarChangedRoutine(el.dataset.val);
+                showToast("Avatarınız değiştirildi ve herkese güncellendi!", "success");
+            }); 
         });
 
         document.getElementById('btn-mobile-menu').addEventListener('click', () => {
@@ -1071,6 +1170,7 @@
                 document.getElementById('support-admin-view').style.display = isAdmin ? 'block' : 'none';
 
                 showToast(`Hoş geldin, ${myUsername}!`, 'success');
+                loadInboxAndSupport(); // Login olduğunda dinlemeyi başlat
             } else {
                 document.getElementById('auth-card').style.display = 'block';
                 document.getElementById('room-controls').style.display = 'none';
@@ -1091,12 +1191,18 @@
         document.getElementById('btn-logout').addEventListener('click', () => { signOut(auth); document.getElementById('settings-modal').classList.remove('active'); });
 
         // --- INBOX, DESTEK VE ARKADAŞLAR MANTIĞI ---
+        let lastInboxCount = 0;
+        let lastRequestsCount = 0;
+
         function loadInboxAndSupport() {
             if(!auth.currentUser) return;
 
+            // Gelen Kutusu (Mesajlar / Davetler) Dinleyici
             onValue(ref(database, 'inbox/' + myUid), (snapshot) => {
                 const list = document.getElementById('inbox-list'); list.innerHTML = '';
+                let currentCount = 0;
                 if(snapshot.exists()) {
+                    currentCount = Object.keys(snapshot.val()).length;
                     snapshot.forEach(child => { 
                         const d = child.val(); 
                         list.innerHTML += `<div class="ticket-item">
@@ -1105,21 +1211,54 @@
                         </div>`; 
                     });
                 } else { list.innerHTML = '<p style="color:#888;">Gelen kutun boş.</p>'; }
+                
+                // Bildirim Kontrolü
+                if (currentCount > lastInboxCount && lastInboxCount !== 0) triggerNotificationUI();
+                lastInboxCount = currentCount;
             });
 
+            // Arkadaşlık İstekleri Dinleyici
+            onValue(ref(database, 'users/' + myUid + '/friend_requests'), (snapshot) => {
+                const rList = document.getElementById('friend-requests-list'); rList.innerHTML = '';
+                let reqCount = 0;
+                if (snapshot.exists()) {
+                    reqCount = Object.keys(snapshot.val()).length;
+                    snapshot.forEach(child => {
+                        const reqUid = child.key; const reqData = child.val();
+                        rList.innerHTML += `<div class="ticket-item">
+                            <span>${renderAvatarHtml(reqData.avatar, reqUid)} ${reqData.name} istek yolladı.</span>
+                            <div style="display:flex; gap:5px;">
+                                <button class="friend-btn" style="background:#4CAF50" onclick="window.acceptFriend('${reqUid}', '${reqData.name}', '${reqData.avatar}')">Kabul</button>
+                                <button class="friend-btn" style="background:#e50914" onclick="window.rejectFriend('${reqUid}')">Red</button>
+                            </div>
+                        </div>`;
+                    });
+                } else { rList.innerHTML = '<p style="color:#888;">Bekleyen istek yok.</p>'; }
+
+                // Bildirim Kontrolü
+                if (reqCount > lastRequestsCount && lastRequestsCount !== 0) triggerNotificationUI();
+                lastRequestsCount = reqCount;
+            });
+
+            // Onaylanmış Arkadaşlarım Listesi Dinleyici
             onValue(ref(database, 'users/' + myUid + '/friends'), (snapshot) => {
                 const flist = document.getElementById('friends-list'); flist.innerHTML = '';
                 if (snapshot.exists()) {
                     snapshot.forEach(child => {
-                        const fId = child.key; const fName = child.val();
+                        const fId = child.key; const fData = child.val();
+                        // Eski sistemde fData sadece isimdi, şimdi obje yapıyoruz. Geri dönük uyumluluk:
+                        const fName = typeof fData === 'string' ? fData : fData.name;
+                        const fAvatar = typeof fData === 'string' ? '👤' : (fData.avatar || '👤');
+                        
                         flist.innerHTML += `<div class="ticket-item">
-                            <span>🤝 ${fName}</span>
-                            <button class="friend-btn" onclick="window.inviteFriend('${fId}', '${fName}')">Odaya Davet Et</button>
+                            <span>${renderAvatarHtml(fAvatar, fId)} ${fName}</span>
+                            <button class="friend-btn" onclick="window.inviteFriend('${fId}', '${fName}')">Davet Et</button>
                         </div>`;
                     });
-                } else { flist.innerHTML = '<p style="color:#888;">Henüz ekli arkadaşınız yok. Sohbette kişilerin üzerine tıklayarak ekleyebilirsiniz.</p>'; }
+                } else { flist.innerHTML = '<p style="color:#888;">Henüz ekli arkadaşınız yok.</p>'; }
             });
 
+            // Destek Biletleri Dinleyici
             onValue(ref(database, 'support_tickets'), (snapshot) => {
                 const myTicketsList = document.getElementById('my-tickets-list'); myTicketsList.innerHTML = '';
                 const adminList = document.getElementById('admin-tickets-list'); adminList.innerHTML = '';
@@ -1141,6 +1280,12 @@
                     if(myTicketsList.innerHTML === '') myTicketsList.innerHTML = '<p style="color:#888;">Henüz bir talebiniz yok.</p>';
                 }
             });
+        }
+
+        function triggerNotificationUI() {
+            document.getElementById('notif-audio').play().catch(()=>{}); // Kullanıcı etkileşimi yoksa çalmayabilir
+            document.getElementById('btn-open-inbox').classList.add('has-notification');
+            document.getElementById('btn-inbox-ingame').classList.add('has-notification');
         }
 
         window.switchTab = function(tab) {
@@ -1169,9 +1314,23 @@
 
         window.addFriend = function(targetUid, targetName) {
             if(!auth.currentUser) return showToast("Giriş yapmalısınız", "error");
-            set(ref(database, `users/${myUid}/friends/${targetUid}`), targetName);
-            showToast(`${targetName} arkadaşlara eklendi!`, "success");
+            // Doğrudan eklemek yerine istek yolla
+            set(ref(database, `users/${targetUid}/friend_requests/${myUid}`), { name: myUsername, avatar: myAvatar });
+            showToast(`${targetName} kişisine arkadaşlık isteği gönderildi!`, "success");
             document.getElementById('user-action-modal').classList.remove('active');
+        };
+
+        window.acceptFriend = function(reqUid, reqName, reqAvatar) {
+            // İki tarafın da listesine ekle
+            set(ref(database, `users/${myUid}/friends/${reqUid}`), { name: reqName, avatar: reqAvatar || '👤' });
+            set(ref(database, `users/${reqUid}/friends/${myUid}`), { name: myUsername, avatar: myAvatar });
+            // İsteği sil
+            remove(ref(database, `users/${myUid}/friend_requests/${reqUid}`));
+            showToast("Arkadaşlık isteği kabul edildi!", "success");
+        };
+
+        window.rejectFriend = function(reqUid) {
+            remove(ref(database, `users/${myUid}/friend_requests/${reqUid}`));
         };
 
         window.inviteFriend = function(targetUid, targetName) {
@@ -1180,7 +1339,11 @@
             showToast(`${targetName} davet edildi!`, "success");
         };
 
-        const openInbox = () => { document.getElementById('inbox-modal').classList.add('active'); loadInboxAndSupport(); };
+        const openInbox = () => { 
+            document.getElementById('inbox-modal').classList.add('active'); 
+            document.getElementById('btn-open-inbox').classList.remove('has-notification');
+            document.getElementById('btn-inbox-ingame').classList.remove('has-notification');
+        };
         document.getElementById('btn-open-inbox').addEventListener('click', openInbox);
         document.getElementById('btn-inbox-ingame').addEventListener('click', openInbox);
 
@@ -1218,7 +1381,10 @@
             div.id = 'facecam-' + id; div.className = 'face-cam-bubble';
             div.innerHTML = `<video autoplay playsinline ${muted ? 'muted' : ''}></video><div class="face-cam-name">${uname}</div>`;
             document.querySelector('.video-wrapper').appendChild(div);
-            div.querySelector('video').srcObject = stream; makeDraggable(div);
+            div.querySelector('video').srcObject = stream; 
+            
+            makeDraggable(div); // Sürüklenebilirlik ve yeniden boyutlandırma devrede
+            
             div.style.top = (40 + Math.random() * 40) + 'px'; div.style.left = (40 + Math.random() * 100) + 'px';
         }
 
@@ -1280,13 +1446,6 @@
         document.getElementById('btn-settings').addEventListener('click', () => settingsModal.classList.add('active'));
         document.getElementById('btn-open-login-settings').addEventListener('click', () => settingsModal.classList.add('active'));
         document.getElementById('btn-close-settings').addEventListener('click', () => settingsModal.classList.remove('active'));
-        document.querySelectorAll('.avatar-option').forEach(el => { 
-            el.addEventListener('click', () => { 
-                document.querySelectorAll('.avatar-option').forEach(a => a.classList.remove('selected')); 
-                el.classList.add('selected'); 
-                myAvatar = el.dataset.val; 
-            }); 
-        });
 
         document.getElementById('voice-mode-select').addEventListener('change', (e) => {
             isPttMode = (e.target.value === 'ptt');
@@ -1394,7 +1553,7 @@
         function addChatMessage(sender, avatar, text, isMe, pId = null, uid = null) {
             const div = document.createElement('div');
             if (sender === "Sistem") div.className = `message system`; else div.className = `message ${isMe ? 'me' : ''}`;
-            const avatarHtml = renderAvatarHtml(avatar);
+            const avatarHtml = renderAvatarHtml(avatar, uid);
             
             if (sender === "Sistem") { 
                 div.innerHTML = `${avatarHtml} ${text}`; 
@@ -1410,7 +1569,7 @@
         function createVoiceAvatarElement(id, name, avatar, uid) {
             if(document.getElementById('v-avatar-'+id)) return document.getElementById('v-avatar-'+id);
             const el = document.createElement('div'); el.className = 'v-avatar'; el.id = 'v-avatar-' + id;
-            el.innerHTML = `${renderAvatarHtml(avatar)} <div class="v-name">${name}</div>`;
+            el.innerHTML = `${renderAvatarHtml(avatar, uid)} <div class="v-name">${name}</div>`;
             el.onclick = () => window.openUserActionModal(id, name, avatar, uid);
             document.getElementById('voice-avatars-container').appendChild(el); return el;
         }
@@ -1518,11 +1677,11 @@
                 showToast("Mikrofon kapatıldı.", "info");
             } else {
                 try {
-                    // Cihazın kendi AEC'sini engellememek için sampleRate kısıtlamasını kaldırdık
+                    // Yankı engellemeyi zorunlu kılan native konfigürasyon (Google Chrome ve mobil dahil)
                     const constraints = { 
                         audio: selectedMicId !== 'default' 
-                               ? { deviceId: { exact: selectedMicId }, echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
-                               : { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+                               ? { deviceId: { exact: selectedMicId }, echoCancellation: true, noiseSuppression: true, autoGainControl: true, googEchoCancellation: true, googNoiseSuppression: true, googHighpassFilter: true } 
+                               : { echoCancellation: true, noiseSuppression: true, autoGainControl: true, googEchoCancellation: true, googNoiseSuppression: true, googHighpassFilter: true } 
                     };
                     micStream = await navigator.mediaDevices.getUserMedia(constraints);
                     
@@ -1557,7 +1716,7 @@
                         const callHost = peer.call(hostId, currentProcessedStream, { metadata: voiceMeta }); 
                         activeVoiceCalls.set(hostId, callHost); 
                         
-                        // DİĞER İZLEYİCİLERE (FULL MESH P2P BAĞLANTI) BAĞLAN - YANKIYI ÖNLER
+                        // DİĞER İZLEYİCİLERE (FULL MESH P2P BAĞLANTI) BAĞLAN
                         otherPeers.forEach(pId => {
                             const callPeer = peer.call(pId, currentProcessedStream, { metadata: voiceMeta });
                             activeVoiceCalls.set(pId, callPeer);
@@ -1577,6 +1736,7 @@
 
         function handleIncomingData(data, conn = null) {
             if (data.type === 'CHAT') { addChatMessage(data.sender, data.avatar, data.text, false, data.peerId, data.uid); if (isHost && conn) viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); }); } 
+            else if (data.type === 'AVATAR_UPDATE') { updateAvatarsInUI(data.uid, data.avatar); if (isHost && conn) viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); }); }
             else if (data.type === 'PHYSICS_EMOJI') { 
                 const dropX = data.xRatio * matterCanvas.width; const dropY = data.yRatio * matterCanvas.height;
                 spawnPhysicsEmoji(data.emoji, dropX, dropY, data.vx, data.vy, false);
@@ -1787,7 +1947,7 @@
             const list = document.getElementById('admin-user-list'); list.innerHTML = '';
             viewers.forEach((v, peerId) => {
                 const li = document.createElement('li'); li.className = 'admin-user-item';
-                li.innerHTML = `<span><div style="width:20px;height:20px;display:inline-block;border-radius:50%;overflow:hidden;vertical-align:middle;">${renderAvatarHtml(v.avatar)}</div> ${v.username}</span> <div><button class="kick-btn" style="background:#2196F3;" onclick="window.transferHost('${peerId}')">Devret</button> <button class="kick-btn" onclick="window.kickUser('${peerId}')">At</button></div>`;
+                li.innerHTML = `<span><div style="width:20px;height:20px;display:inline-block;border-radius:50%;overflow:hidden;vertical-align:middle;">${renderAvatarHtml(v.avatar, v.uid)}</div> ${v.username}</span> <div><button class="kick-btn" style="background:#2196F3;" onclick="window.transferHost('${peerId}')">Devret</button> <button class="kick-btn" onclick="window.kickUser('${peerId}')">At</button></div>`;
                 list.appendChild(li);
             });
         }
