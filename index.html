@@ -24,6 +24,12 @@
         .screen { display: none; }
         .screen.active { display: flex; }
         
+        /* İşletim sistemi dokunma efekti ve seslerini (mavi vurgu vb.) engelleme */
+        button, a, .reaction-btn, #ptt-btn-mobile {
+            -webkit-tap-highlight-color: transparent;
+            outline: none;
+        }
+
         .hide-on-desktop { display: none !important; }
 
         /* Toast Bildirimleri */
@@ -575,6 +581,28 @@
         const auth = getAuth(app);
         const database = getDatabase(app);
 
+        // --- MOBİL İÇİN BİP SESİNİ VE SESSİZLİĞİ ENGELLEYEN AUDIO CONTEXT AÇICI ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const unlockAudio = () => {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            // Sessiz bir frekans çalarak iOS/Android sistem seslerini ve uyku modunu engelleriz
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            gain.gain.value = 0; // Ses çıkmasın
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            if (osc.start) osc.start(0);
+            if (osc.stop) osc.stop(audioCtx.currentTime + 0.1);
+            
+            document.body.removeEventListener('click', unlockAudio);
+            document.body.removeEventListener('touchstart', unlockAudio);
+        };
+        // Kullanıcının ilk etkileşiminde sistem ses motorunu güvenle uyanık tutuyoruz
+        document.body.addEventListener('click', unlockAudio);
+        document.body.addEventListener('touchstart', unlockAudio);
+
         let stats = { startTime: 0, myMsgCount: 0, totalMsgCount: 0, emojiCount: 0, userMsgCounts: {} };
 
         function showToast(message, type = 'info') {
@@ -836,34 +864,16 @@
             }
         }
 
-        // --- 🔤 SİNEMATİK CANLI ALTYAZI ---
+        // --- 🔤 SİNEMATİK CANLI ALTYAZI (Sistem Bip Sesini Engellemek İçin İsteğe Bağlı Yüklenecek) ---
         let speechRecog = null;
         let isAiCaptionsEnabled = false;
         let activeCaptionLines = {}; 
 
-        document.getElementById('ai-caption-toggle').addEventListener('change', (e) => {
-            isAiCaptionsEnabled = e.target.checked;
-            if (isAiCaptionsEnabled && !('webkitSpeechRecognition' in window)) {
-                showToast("Tarayıcınız AI Altyazı desteklemiyor.", "error"); 
-                e.target.checked = false; 
-                isAiCaptionsEnabled = false;
-            } else {
-                if(isAiCaptionsEnabled) {
-                    showToast("Sinematik Altyazı Açık", "success");
-                    // Sistem mikrofonu açıksa ve altyazı aktif edildiyse dinlemeyi başlat
-                    if (globalMicEnabled && speechRecog) {
-                        try { speechRecog.start(); } catch(err){}
-                    }
-                } else {
-                    // Kapatıldığında dinlemeyi durdur ki arka planda bip sesi yapmasın
-                    if (speechRecog) {
-                        try { speechRecog.stop(); } catch(err){}
-                    }
-                }
-            }
-        });
-
-        if ('webkitSpeechRecognition' in window) {
+        // Sadece kullanıcı bu özelliği AÇTIĞINDA webkitSpeechRecognition oluşturulur, aksi takdirde Android durduk yere arka planda "BİP" sesi çalmaz.
+        function initSpeechRecog() {
+            if (!('webkitSpeechRecognition' in window)) return false;
+            if (speechRecog) return true; // Zaten varsa tekrar oluşturma
+            
             speechRecog = new webkitSpeechRecognition();
             speechRecog.continuous = true;
             speechRecog.interimResults = true; 
@@ -890,7 +900,7 @@
             };
 
             speechRecog.onend = () => {
-                // Yalnızca kullanıcı bilerek özelliği açtıysa ve mikrofon yetkisi varsa motoru canlı tut
+                // Sadece yetki açık ve özellik aktifse motoru tekrar çalıştır.
                 if (globalMicEnabled && isAiCaptionsEnabled) {
                     try { speechRecog.start(); } catch(e){}
                 }
@@ -901,7 +911,29 @@
                     console.warn("Altyazı Hatası:", e.error);
                 }
             };
+            return true;
         }
+
+        document.getElementById('ai-caption-toggle').addEventListener('change', (e) => {
+            isAiCaptionsEnabled = e.target.checked;
+            if (isAiCaptionsEnabled) {
+                const supported = initSpeechRecog();
+                if (!supported) {
+                    showToast("Tarayıcınız AI Altyazı desteklemiyor.", "error"); 
+                    e.target.checked = false; 
+                    isAiCaptionsEnabled = false;
+                    return;
+                }
+                showToast("Sinematik Altyazı Açık", "success");
+                if (globalMicEnabled && speechRecog) {
+                    try { speechRecog.start(); } catch(err){}
+                }
+            } else {
+                if (speechRecog) {
+                    try { speechRecog.stop(); } catch(err){}
+                }
+            }
+        });
 
         function broadcastCaption(text, isFinal) {
             const capData = { type: 'LIVE_CAPTION', peerId: (peer ? peer.id : 'unknown'), text: text, isFinal: isFinal, avatar: myAvatar, username: myUsername };
@@ -1063,7 +1095,7 @@
         window.toggleLobbyMusic = function(forceState) {
             isLobbyMusicPlaying = forceState !== undefined ? forceState : !isLobbyMusicPlaying;
             const btn = document.getElementById('btn-lobby-music');
-            if(isLobbyMusicPlaying) { lobbyAudio.play(); fadeAudio(lobbyAudio, 0.4, 1000); btn.classList.add('active'); } 
+            if(isLobbyMusicPlaying) { lobbyAudio.play().catch(e => console.warn("Müzik çalma izni yok", e)); fadeAudio(lobbyAudio, 0.4, 1000); btn.classList.add('active'); } 
             else { fadeAudio(lobbyAudio, 0, 1000); btn.classList.remove('active'); }
         };
 
@@ -1189,7 +1221,6 @@
         document.getElementById('mic-select').addEventListener('change', (e) => selectedMicId = e.target.value);
         document.getElementById('speaker-select').addEventListener('change', (e) => { selectedSpeakerId = e.target.value; if (typeof videoElement.setSinkId !== 'undefined') { videoElement.setSinkId(selectedSpeakerId).catch(()=>{}); activeAudioElements.forEach(a => a.setSinkId(selectedSpeakerId).catch(()=>{})); } });
 
-        // SADECE SES İZİNLERİNİ KESİYORUZ (BAŞLAT/DURDUR SİSTEM SESİ ÇIKARTMAZ)
         function startTalking() { 
             if(!isPttMode || !micStream || isTalking) return; 
             isTalking = true; 
@@ -1288,28 +1319,41 @@
         }
         document.getElementById('leave-btn').addEventListener('click', () => { if (confirm("Odadan ayrılmak istediğinize emin misiniz?")) showWrappedAndDisconnect(); });
 
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // Gelen Sesi İşleme (MOBİLDE SESSİZLİK SORUNU İÇİN GÜNCELLENDİ)
         function handleIncomingVoice(call) {
             call.answer();
             call.on('stream', audioStream => {
                 if (audioCtx.state === 'suspended') audioCtx.resume();
+                
+                // --- Sadece Görselleştirici (Analyser) için kullanıyoruz ---
                 const source = audioCtx.createMediaStreamSource(audioStream);
-                const analyser = audioCtx.createAnalyser(); analyser.fftSize = 256; source.connect(analyser); 
-
-                const panner = audioCtx.createStereoPanner(); panner.pan.value = (Math.random() * 2) - 1; 
-                const destination = audioCtx.createMediaStreamDestination();
-                analyser.connect(panner); panner.connect(destination); 
+                const analyser = audioCtx.createAnalyser(); 
+                analyser.fftSize = 256; 
+                source.connect(analyser); 
+                
+                // NOT: source nesnesini destination ve panner'a bağlamıyoruz. Mobil cihazlarda (iOS vb) 
+                // MediaStreamDestination kullanarak sesi iletmeye çalışmak sesin Mute (sessiz) olmasına yol açar.
+                // Bunun yerine, <audio> etiketine doğrudan orijinal 'audioStream' verilir.
 
                 const uName = call.metadata?.username || "Konuk"; const uAvatar = call.metadata?.avatar || "👤";
-                const el = createVoiceAvatarElement(call.peer, uName, uAvatar); activeSpeakers.set(call.peer, { analyser: analyser, element: el });
+                const el = createVoiceAvatarElement(call.peer, uName, uAvatar); 
+                activeSpeakers.set(call.peer, { analyser: analyser, element: el });
 
-                const audio = document.createElement('audio'); audio.srcObject = destination.stream; audio.autoplay = true; audio.muted = isSpeakerMuted; 
+                const audio = document.createElement('audio'); 
+                audio.srcObject = audioStream; // Orijinal sesi ham olarak oynat (Mobilde tam çalışır)
+                audio.autoplay = true; 
+                audio.playsInline = true; // Mobilde arkaplan ve kilit ekranı için ŞART
+                audio.muted = isSpeakerMuted; 
                 const isWhisper = call.metadata?.whisper; audio.dataset.whisper = isWhisper ? 'true' : 'false';
                 
                 if(typeof audio.setSinkId !== 'undefined' && selectedSpeakerId !== 'default') audio.setSinkId(selectedSpeakerId).catch(()=>{});
                 const baseVol = document.getElementById('mix-chat-vol').value / 100; audio.volume = isWhisper ? baseVol * 0.3 : baseVol;
                 
                 document.body.appendChild(audio); activeAudioElements.push(audio);
+                
+                // Bazı mobil tarayıcılarda sesin çalması için Promise beklenmeli
+                audio.play().catch(e => console.warn("Ses otomatik oynatılamadı. Cihaz etkileşimi bekleniyor.", e));
+
                 call.on('close', () => { audio.remove(); removeVoiceAvatar(call.peer); activeAudioElements = activeAudioElements.filter(a => a !== audio); });
             });
         }
@@ -1328,7 +1372,12 @@
                 showToast("Mikrofon kapatıldı.", "info");
             } else {
                 try {
-                    const constraints = { audio: selectedMicId !== 'default' ? { deviceId: { exact: selectedMicId } } : true };
+                    // Yankı ve dip ses engelleyici parametreler zorunlu kılındı (donanımsal bip seslerini de engeller)
+                    const constraints = { 
+                        audio: selectedMicId !== 'default' 
+                               ? { deviceId: { exact: selectedMicId }, echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+                               : { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+                    };
                     micStream = await navigator.mediaDevices.getUserMedia(constraints);
                     
                     if(isPttMode) { micStream.getAudioTracks().forEach(t => t.enabled = false); btnMic.innerHTML = "🛑<span class='hide-on-mobile'> Bekliyor</span>"; btnMic.style.background = "#e50914"; pttBtnMobile.style.display = 'flex'; } 
@@ -1342,7 +1391,7 @@
                     showToast("Sese bağlanıldı!", "success");
 
                     globalMicEnabled = true; 
-                    // SADECE "Deneysel Altyazı" SEÇENEĞİ AÇIKSA MOTORU BAŞLAT. (Bip sesi yapmasın diye)
+                    // SADECE "Deneysel Altyazı" SEÇENEĞİ AÇIKSA MOTORU BAŞLAT. (Zorunlu Bip Sesi yapmasını tamamen bitirir)
                     if(speechRecog && isAiCaptionsEnabled) {
                         try { speechRecog.start(); } catch(e){}
                     }
