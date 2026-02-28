@@ -1,4 +1,4 @@
-,<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
@@ -24,6 +24,8 @@
         .screen { display: none; }
         .screen.active { display: flex; }
         
+        .hide-on-desktop { display: none !important; }
+
         /* Toast Bildirimleri */
         #toast-container { position: fixed; top: 20px; right: 20px; z-index: 999999; display: flex; flex-direction: column; gap: 10px; pointer-events: none;}
         .toast { background: #2a2a2a; color: #fff; padding: 12px 18px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.6); border-left: 4px solid var(--primary); font-size: 0.9rem; font-weight: 500; transform: translateX(120%); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; align-items: center; gap: 10px; max-width: 300px; }
@@ -74,10 +76,11 @@
 
         /* Ana Ekran Düzeni */
         .main-container { display: flex; width: 100vw; height: 100vh; transition: 0.3s; flex-direction: var(--layout-dir); }
-        .video-section { flex: 3; display: flex; flex-direction: column; background: #000; position: relative; transition: flex 0.3s; }
+        .video-section { flex: 3; display: flex; flex-direction: column; background: #000; position: relative; transition: flex 0.3s, height 0.3s; }
         .header { background: var(--card-bg); padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); transition: background-color 0.5s, opacity 0.5s ease; }
-        .header-left h2 { margin: 0; font-size: 1.1rem; color: var(--text-color); font-weight: 600; }
-        .header-controls { display: flex; gap: 8px; flex-wrap: wrap; position: relative; }
+        .header-left { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+        .header-left h2 { margin: 0; font-size: 1.1rem; color: var(--text-color); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .header-controls { display: flex; gap: 8px; flex-wrap: wrap; position: relative; align-items: center; }
         
         .desktop-controls { display: flex; gap: 8px; flex-wrap: wrap; }
         
@@ -210,7 +213,7 @@
         #ptt-btn-mobile.talking { background: #4CAF50; transform: scale(1.1); box-shadow: 0 0 20px #4CAF50; }
 
         /* 💬 Mobil Sohbet Baloncuğu Butonu */
-        #mobile-chat-bubble-btn { position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; background: var(--primary); color: white; border-radius: 50%; display: none; justify-content: center; align-items: center; font-size: 1.5rem; z-index: 10001; box-shadow: 0 5px 20px rgba(0,0,0,0.6); border: 2px solid #fff; cursor: pointer; transition: opacity 0.5s ease, transform 0.2s; }
+        #mobile-chat-bubble-btn { position: fixed; top: 70px; right: 15px; width: 50px; height: 50px; background: var(--primary); color: white; border-radius: 50%; display: none; justify-content: center; align-items: center; font-size: 1.5rem; z-index: 10001; box-shadow: 0 5px 20px rgba(0,0,0,0.6); border: 2px solid #fff; cursor: pointer; transition: opacity 0.5s ease, transform 0.2s; }
         #mobile-chat-bubble-btn:hover { transform: scale(1.1); }
 
         #wrapped-overlay { position: fixed; inset: 0; z-index: 9999999; background: linear-gradient(135deg, var(--bg-color), var(--primary)); display: none; flex-direction: column; justify-content: center; align-items: center; color: white; text-align: center; overflow: hidden; }
@@ -219,46 +222,72 @@
         .w-title { font-size: 2.5rem; font-weight: 900; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; text-shadow: 2px 2px 10px rgba(0,0,0,0.5); }
         .w-highlight { color: #ffd700; font-size: 4.5rem; display: block; margin: 15px 0; font-weight: 900; text-shadow: 0 0 20px rgba(255, 215, 0, 0.5); }
 
-        /* MOBİL DÜZENLEMELERİ (MENÜ & SAĞ ÜST SOHBET) */
+        /* MOBİL DÜZENLEMELERİ (MENÜ & SAĞ ÜST SOHBET & DÜZEN) */
         @media (max-width: 768px) {
+            .hide-on-desktop { display: flex !important; align-items: center; justify-content: center; }
+            .hide-on-mobile { display: none !important; }
+            
             #btn-host { display: none !important; }
             #mobile-host-warning { display: block; }
             #btn-viewer { width: 100%; }
-            .main-container { flex-direction: column; height: 100dvh; } 
             
-            /* Header güncellemeleri - Sohbet balonu sağ üstte olacağı için header sağdan kırpılır */
-            .header { padding: 10px; padding-right: 70px; flex-direction: row; align-items: center; }
-            .header-left h2 { font-size: 1rem; }
+            .main-container { flex-direction: column; height: 100dvh; overflow: hidden; } 
             
-            /* Mobil Hamburger Menü Butonu */
-            #btn-mobile-menu { display: flex !important; background: #2196F3; }
+            .header { padding: 10px 12px; flex-direction: row; align-items: center; flex-wrap: nowrap; }
+            .header-left h2 { font-size: 0.95rem; }
+            .header-controls { gap: 4px; }
+            .ctrl-btn { padding: 6px 10px; font-size: 1rem; }
             
             /* Masaüstü butonlarını mobilde açılır kapanır (Dropdown) yapıyoruz */
             .desktop-controls { 
                 display: none; 
                 position: absolute; 
                 top: 55px; 
-                right: 15px; 
-                left: 15px; 
+                right: 10px; 
+                width: 220px;
                 background: var(--card-bg); 
-                padding: 15px; 
+                padding: 10px; 
                 border-radius: 8px; 
                 border: 1px solid var(--border-color); 
-                flex-wrap: wrap; 
+                flex-direction: column;
                 box-shadow: 0 10px 30px rgba(0,0,0,0.9); 
                 z-index: 9999;
             }
             .desktop-controls.open { display: flex; }
-            .desktop-controls .ctrl-btn { flex: 1 1 calc(50% - 10px); justify-content: center; } 
+            .desktop-controls .ctrl-btn { flex: none; justify-content: flex-start; margin-bottom: 5px; width: 100%; } 
 
-            .video-section { flex: 1; height: auto; }
+            .video-section { flex: 0 0 45vh; height: 45vh; transition: flex 0.3s, height 0.3s; }
+            body.chat-floating .video-section { flex: 1; height: auto; }
+            
             .layout-resizer { display: none; } 
             
-            .sidebar { display: none; } 
-            .sidebar.floating { display: flex; width: 90% !important; height: 60vh !important; top: 10vh !important; left: 5% !important; }
+            /* Mobilde Varsayılan Olarak Alt Kısımda */
+            .sidebar { display: flex; max-width: 100%; width: 100%; flex: 1; border-left: none; border-top: 1px solid var(--border-color); } 
             
-            /* Mobil Sohbet Butonu Artık Sağ Üstte */
-            #mobile-chat-bubble-btn { display: flex; top: 15px; right: 15px; bottom: auto; width: 45px; height: 45px; font-size: 1.2rem; }
+            /* Yüzen (Çekmece) Modu */
+            .sidebar.floating { 
+                position: fixed !important; 
+                top: auto !important; 
+                bottom: 0 !important; 
+                left: 0 !important; 
+                width: 100% !important; 
+                height: 60vh !important; 
+                border-radius: 20px 20px 0 0;
+                border: 1px solid var(--border-color);
+                border-bottom: none;
+                box-shadow: 0 -10px 40px rgba(0,0,0,0.8);
+            }
+            
+            /* Yüzen panel kapatıldığında baloncuğu göster */
+            body.chat-floating-minimized #mobile-chat-bubble-btn { display: flex; }
+            body.chat-floating-minimized .sidebar.floating { display: none !important; }
+
+            /* Yüzer moddayken kopar butonunu gizle, kapat (x) butonunu göster */
+            #btn-toggle-float-mobile { display: flex !important; }
+            .sidebar.floating #btn-toggle-float-mobile { display: none !important; }
+            
+            #btn-close-floating-mobile { display: none !important; }
+            .sidebar.floating #btn-close-floating-mobile { display: flex !important; }
 
             .chat-messages { padding: 10px; }
             .chat-input-area { padding: 10px; padding-bottom: max(10px, env(safe-area-inset-bottom)); } 
@@ -278,7 +307,7 @@
 
     <div id="toast-container"></div>
 
-    <!-- Mobil Sohbet Baloncuğu (Artık Sağ Üstte) -->
+    <!-- Mobil Sohbet Baloncuğu -->
     <div id="mobile-chat-bubble-btn">💬</div>
 
     <!-- INBOX VE DESTEK MODALI -->
@@ -430,24 +459,26 @@
                         <h2>🍿 Oda: <span id="room-display">...</span></h2>
                         <span id="role-display" style="font-size: 0.8rem; color: #aaa;">...</span>
                     </div>
-                    <div class="header-controls">
-                        <!-- Mobil İçin Hamburger Menü -->
-                        <button id="btn-mobile-menu" class="ctrl-btn settings" style="display:none;">☰ Menü</button>
+                    <div class="header-controls" id="main-header-controls">
+                        <!-- Hoparlör ve Mikrofon Doğrudan Görünür -->
+                        <button id="btn-speaker" class="ctrl-btn speaker" title="Sohbet Sesleri">🔊<span class="hide-on-mobile"> Sohbet</span></button>
+                        <button id="btn-mic" class="ctrl-btn mic" title="Mikrofon">🎤<span class="hide-on-mobile"> Mikrofon</span></button>
                         
-                        <!-- Masaüstü Kontroller / Mobil Açılır Kapanır Menü -->
+                        <!-- Mobil Hamburger Menü -->
+                        <button id="btn-mobile-menu" class="ctrl-btn settings hide-on-desktop" style="padding: 8px 12px;">☰</button>
+                        
+                        <!-- Masaüstü Kontroller (Mobilde Dropdown) -->
                         <div id="collapsible-controls" class="desktop-controls">
                             <button id="btn-lobby-music" class="ctrl-btn music" title="Bekleme Salonu Müziği">🎵 Müzik</button>
                             <button id="btn-camera" class="ctrl-btn camera" title="Yüzen Kameranı Aç">📷 Kamera</button>
                             <button id="btn-theater" class="ctrl-btn theater" title="Sohbeti Daralt">↔️ Tiyatro</button>
                             <button id="btn-pip" class="ctrl-btn pip" title="Küçük Pencere">📺 PiP</button>
                             <button id="btn-cinema" class="ctrl-btn cinema" title="Işıkları Kapat">🎬 Sinema</button>
-                            <button id="btn-speaker" class="ctrl-btn speaker" title="Sohbet Sesleri">🔊 Sohbet</button>
-                            <button id="btn-mic" class="ctrl-btn mic" title="Mikrofon">🎤 Mikrofon</button>
                             <button id="btn-inbox-ingame" class="ctrl-btn settings" title="Mesajlar" style="background:#0288d1;">📬 Mesajlar</button>
                             <button id="leave-btn" class="ctrl-btn leave">Çıkış</button>
                         </div>
                         
-                        <!-- Ayarlar Butonu (Dışarıda Kalır) -->
+                        <!-- Ayarlar -->
                         <button id="btn-settings" class="ctrl-btn settings" title="Ayarlar">⚙️</button>
                     </div>
                 </div>
@@ -488,8 +519,15 @@
 
             <div class="sidebar">
                 <div class="sidebar-header" id="sidebar-header" title="Koparmak için sürükle, sabitlemek için çift tıkla!">
-                    <h3>💬 Lobi Sohbeti</h3>
-                    <span id="status-text" style="color:#4CAF50; font-size: 0.8rem; font-weight:bold;">Bağlanılıyor...</span>
+                    <div style="display:flex; align-items:center; gap: 8px;">
+                        <h3>💬 Lobi Sohbeti</h3>
+                        <span id="status-text" style="color:#4CAF50; font-size: 0.8rem; font-weight:bold;">Bağlanılıyor...</span>
+                    </div>
+                    <div>
+                        <!-- Mobilde paneli açılır kapanır çekmece yapmak için butonlar -->
+                        <button id="btn-toggle-float-mobile" class="ctrl-btn settings hide-on-desktop" style="padding: 4px 8px; font-size: 0.8rem; border: none;">🪟 Kopar</button>
+                        <button id="btn-close-floating-mobile" class="ctrl-btn settings hide-on-desktop" style="padding: 4px 8px; font-size: 0.8rem; background: var(--primary); color: white; border: none;">❌</button>
+                    </div>
                 </div>
                 <div class="chat-messages" id="chat-messages"></div>
                 <div id="admin-panel">
@@ -556,7 +594,7 @@
         let currentTheme = 'default';
         let isAdmin = false;
         let otherPeers = [];
-        let globalMicEnabled = false; // Kullanıcının mikrofon erişimini takip eder
+        let globalMicEnabled = false; 
 
         const videoElement = document.getElementById('main-video');
         const playOverlay = document.getElementById('play-overlay');
@@ -589,7 +627,6 @@
             
             zenTimer = setTimeout(() => {
                 document.body.classList.add('zen-mode');
-                // Menü açıksa zen modunda otomatik kapanır
                 document.getElementById('collapsible-controls').classList.remove('open');
             }, 3000);
         }
@@ -620,10 +657,15 @@
 
         let isDraggingFloat = false, startX, startY, initialTop, initialLeft;
         
+        // Sadece Masaüstünde Sürükleyerek Koparma 
         sidebarHeader.addEventListener('mousedown', floatDragStart);
         sidebarHeader.addEventListener('touchstart', floatDragStart, {passive: false});
+        
+        // Çift tık ile sabitleme (Hem Masaüstü Hem Mobil)
         sidebarHeader.addEventListener('dblclick', () => { 
-            if(window.innerWidth > 768) { sidebar.classList.remove('floating'); showToast("Pencere sabitlendi", "info"); }
+            sidebar.classList.remove('floating'); 
+            document.body.classList.remove('chat-floating', 'chat-floating-minimized');
+            showToast("Pencere sabitlendi", "info");
         });
 
         function floatDragStart(e) {
@@ -658,16 +700,27 @@
             document.removeEventListener('mouseup', floatDragEnd); document.removeEventListener('touchend', floatDragEnd);
         }
 
+        // Mobil Chat Paneli Koparma (Çekmece Modu) ve Baloncuk Yönetimi
+        const btnToggleFloatMobile = document.getElementById('btn-toggle-float-mobile');
+        const btnCloseFloatingMobile = document.getElementById('btn-close-floating-mobile');
         const mobileBubbleBtn = document.getElementById('mobile-chat-bubble-btn');
-        mobileBubbleBtn.addEventListener('click', () => {
-            if (sidebar.classList.contains('floating')) {
-                sidebar.classList.remove('floating');
-                mobileBubbleBtn.innerHTML = '💬';
-            } else {
-                sidebar.classList.add('floating');
-                mobileBubbleBtn.innerHTML = '❌';
-            }
+
+        btnToggleFloatMobile.addEventListener('click', (e) => {
+            e.stopPropagation();
+            sidebar.classList.add('floating');
+            document.body.classList.add('chat-floating'); // Videoyu tam ekran yapar
+            showToast("Sohbet koparıldı. Sabitlemek için başlığa çift tıkla.", "info");
         });
+        
+        btnCloseFloatingMobile.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.body.classList.add('chat-floating-minimized');
+        });
+
+        mobileBubbleBtn.addEventListener('click', () => {
+            document.body.classList.remove('chat-floating-minimized');
+        });
+
 
         // --- 🍅 MATTER.JS FİZİKSEL EKRAN ---
         const Engine = Matter.Engine, Render = Matter.Render, Runner = Matter.Runner, Bodies = Matter.Bodies, Composite = Matter.Composite, Events = Matter.Events;
@@ -783,7 +836,7 @@
             }
         }
 
-        // --- 🔤 SİNEMATİK CANLI ALTYAZI (Kusursuz Çoklu Kullanıcı & Bağımsız Okuma) ---
+        // --- 🔤 SİNEMATİK CANLI ALTYAZI ---
         let speechRecog = null;
         let isAiCaptionsEnabled = false;
         let activeCaptionLines = {}; 
@@ -795,18 +848,28 @@
                 e.target.checked = false; 
                 isAiCaptionsEnabled = false;
             } else {
-                if(isAiCaptionsEnabled) showToast("Sinematik Altyazı Açık", "success");
+                if(isAiCaptionsEnabled) {
+                    showToast("Sinematik Altyazı Açık", "success");
+                    // Sistem mikrofonu açıksa ve altyazı aktif edildiyse dinlemeyi başlat
+                    if (globalMicEnabled && speechRecog) {
+                        try { speechRecog.start(); } catch(err){}
+                    }
+                } else {
+                    // Kapatıldığında dinlemeyi durdur ki arka planda bip sesi yapmasın
+                    if (speechRecog) {
+                        try { speechRecog.stop(); } catch(err){}
+                    }
+                }
             }
         });
 
         if ('webkitSpeechRecognition' in window) {
             speechRecog = new webkitSpeechRecognition();
             speechRecog.continuous = true;
-            speechRecog.interimResults = true; // Canlı yazılma hissi için aktif
+            speechRecog.interimResults = true; 
             speechRecog.lang = 'tr-TR';
             
             speechRecog.onresult = (e) => {
-                // Eğer Bas-Konuş modundaysak ve o an boşluk tuşuna basmıyorsak arkaplan seslerini yakalamayız
                 if (isPttMode && !isTalking) return; 
                 
                 let interimTranscript = '';
@@ -827,8 +890,8 @@
             };
 
             speechRecog.onend = () => {
-                // Mikrofon yetkisi hala bendeyse ve bilerek kapatmadıysam döngüyü sürdür
-                if (globalMicEnabled) {
+                // Yalnızca kullanıcı bilerek özelliği açtıysa ve mikrofon yetkisi varsa motoru canlı tut
+                if (globalMicEnabled && isAiCaptionsEnabled) {
                     try { speechRecog.start(); } catch(e){}
                 }
             };
@@ -850,7 +913,6 @@
         }
 
         function displayLiveCaption(id, avatar, username, text, isFinal) {
-            // Yalnızca altyazı modunu açan kullanıcılar gelen metinleri ekranda görür
             if (!isAiCaptionsEnabled) return;
             
             const capContainer = document.getElementById('live-captions');
@@ -1110,8 +1172,8 @@
         let isSpeakerMuted = false;
         btnSpeaker.addEventListener('click', () => {
             isSpeakerMuted = !isSpeakerMuted;
-            if (isSpeakerMuted) { btnSpeaker.classList.add('active'); btnSpeaker.innerHTML = "🔇 Sohbet Sessiz"; activeAudioElements.forEach(a => a.muted = true); showToast("Sohbet sesleri kapatıldı.", "info"); } 
-            else { btnSpeaker.classList.remove('active'); btnSpeaker.innerHTML = "🔊 Sohbet Sesi"; activeAudioElements.forEach(a => { a.muted = false; const baseVol = document.getElementById('mix-chat-vol').value / 100; a.volume = a.dataset.whisper === 'true' ? baseVol * 0.3 : baseVol; }); showToast("Sohbet sesleri açıldı.", "info"); }
+            if (isSpeakerMuted) { btnSpeaker.classList.add('active'); btnSpeaker.innerHTML = "🔇 Sessiz"; activeAudioElements.forEach(a => a.muted = true); showToast("Sohbet sesleri kapatıldı.", "info"); } 
+            else { btnSpeaker.classList.remove('active'); btnSpeaker.innerHTML = "🔊 Sohbet"; activeAudioElements.forEach(a => { a.muted = false; const baseVol = document.getElementById('mix-chat-vol').value / 100; a.volume = a.dataset.whisper === 'true' ? baseVol * 0.3 : baseVol; }); showToast("Sohbet sesleri açıldı.", "info"); }
         });
 
         document.getElementById('btn-refresh-devices').addEventListener('click', async () => {
@@ -1127,7 +1189,7 @@
         document.getElementById('mic-select').addEventListener('change', (e) => selectedMicId = e.target.value);
         document.getElementById('speaker-select').addEventListener('change', (e) => { selectedSpeakerId = e.target.value; if (typeof videoElement.setSinkId !== 'undefined') { videoElement.setSinkId(selectedSpeakerId).catch(()=>{}); activeAudioElements.forEach(a => a.setSinkId(selectedSpeakerId).catch(()=>{})); } });
 
-        // Bu alanda sadece sesin gidip gelmesini kontrol ediyoruz. OS Sesinden kaçınmak için start/stop'ları kopardık.
+        // SADECE SES İZİNLERİNİ KESİYORUZ (BAŞLAT/DURDUR SİSTEM SESİ ÇIKARTMAZ)
         function startTalking() { 
             if(!isPttMode || !micStream || isTalking) return; 
             isTalking = true; 
@@ -1138,7 +1200,7 @@
             if(!isPttMode || !micStream || !isTalking) return; 
             isTalking = false; 
             micStream.getAudioTracks().forEach(t => t.enabled = false); 
-            pttBtnMobile.classList.remove('talking'); btnMic.innerHTML = "🛑 Bas-Konuş Bekliyor"; btnMic.style.background = "#e50914"; 
+            pttBtnMobile.classList.remove('talking'); btnMic.innerHTML = "🛑 Bas-Konuş"; btnMic.style.background = "#e50914"; 
         }
         
         window.addEventListener('keydown', (e) => { if (e.code === 'Space' && e.target.tagName !== 'INPUT' && isPttMode && micStream) { e.preventDefault(); startTalking(); } });
@@ -1208,8 +1270,8 @@
             if (peer) peer.destroy(); viewers.clear(); activeVoiceCalls.clear();
             activeAudioElements.forEach(a => a.remove()); activeAudioElements = [];
             
-            globalMicEnabled = false; // Ses tanıma motorunu durdurur
-            if(speechRecog) speechRecog.stop();
+            globalMicEnabled = false; 
+            if(speechRecog) { try { speechRecog.stop(); }catch(e){} }
 
             document.getElementById('voice-avatars-container').innerHTML = ''; activeSpeakers.clear();
             document.getElementById('live-captions').innerHTML = ''; activeCaptionLines = {};
@@ -1256,12 +1318,12 @@
         btnMic.addEventListener('click', async () => {
             if (micStream) {
                 micStream.getTracks().forEach(t => t.stop()); micStream = null;
-                btnMic.classList.remove('active'); btnMic.innerHTML = "🎤 Mikrofon"; btnMic.style.background = "#444";
+                btnMic.classList.remove('active'); btnMic.innerHTML = "🎤<span class='hide-on-mobile'> Mikrofon</span>"; btnMic.style.background = "#444";
                 activeVoiceCalls.forEach(call => call.close()); activeVoiceCalls.clear(); pttBtnMobile.style.display = 'none';
                 removeVoiceAvatar('local'); localAnalyser = null; 
                 
-                globalMicEnabled = false; // Konuşma motorunu durdurur
-                if(speechRecog) speechRecog.stop();
+                globalMicEnabled = false; 
+                if(speechRecog) { try{speechRecog.stop();}catch(e){} }
 
                 showToast("Mikrofon kapatıldı.", "info");
             } else {
@@ -1269,8 +1331,8 @@
                     const constraints = { audio: selectedMicId !== 'default' ? { deviceId: { exact: selectedMicId } } : true };
                     micStream = await navigator.mediaDevices.getUserMedia(constraints);
                     
-                    if(isPttMode) { micStream.getAudioTracks().forEach(t => t.enabled = false); btnMic.innerHTML = "🛑 Bas-Konuş Bekliyor"; btnMic.style.background = "#e50914"; pttBtnMobile.style.display = 'flex'; } 
-                    else { btnMic.classList.add('active'); btnMic.innerHTML = "🎤 Mikrofon Açık"; btnMic.style.background = ""; }
+                    if(isPttMode) { micStream.getAudioTracks().forEach(t => t.enabled = false); btnMic.innerHTML = "🛑<span class='hide-on-mobile'> Bekliyor</span>"; btnMic.style.background = "#e50914"; pttBtnMobile.style.display = 'flex'; } 
+                    else { btnMic.classList.add('active'); btnMic.innerHTML = "🎤<span class='hide-on-mobile'> Açık</span>"; btnMic.style.background = ""; }
                     
                     if (audioCtx.state === 'suspended') audioCtx.resume();
                     const source = audioCtx.createMediaStreamSource(micStream);
@@ -1279,8 +1341,9 @@
                     
                     showToast("Sese bağlanıldı!", "success");
 
-                    globalMicEnabled = true; // Konuşma motorunu Başlatır
-                    if(speechRecog) {
+                    globalMicEnabled = true; 
+                    // SADECE "Deneysel Altyazı" SEÇENEĞİ AÇIKSA MOTORU BAŞLAT. (Bip sesi yapmasın diye)
+                    if(speechRecog && isAiCaptionsEnabled) {
                         try { speechRecog.start(); } catch(e){}
                     }
 
@@ -1301,7 +1364,6 @@
                 spawnPhysicsEmoji(data.emoji, dropX, dropY, data.vx, data.vy, false);
                 if (isHost && conn) viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); });
             }
-            // Canlı Altyazıyı Ekranımıza Basar
             else if (data.type === 'LIVE_CAPTION') { 
                 displayLiveCaption(data.peerId, data.avatar, data.username, data.text, data.isFinal); 
                 if (isHost && conn) viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); }); 
