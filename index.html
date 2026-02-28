@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+,<!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
@@ -72,19 +72,20 @@
         .extra-btn { background: #333; width: 100%; margin-top: 10px; display:flex; justify-content:center; align-items:center; gap:5px; }
         #mobile-host-warning { display: none; color: #ffeb3b; font-size: 0.8rem; margin-top: 15px; padding: 10px; background: rgba(255, 235, 59, 0.1); border-radius: 6px; border: 1px solid rgba(255, 235, 59, 0.3); }
 
-        /* Ana Ekran Düzeni (PC & Özelleştirilebilir) */
+        /* Ana Ekran Düzeni */
         .main-container { display: flex; width: 100vw; height: 100vh; transition: 0.3s; flex-direction: var(--layout-dir); }
         .video-section { flex: 3; display: flex; flex-direction: column; background: #000; position: relative; transition: flex 0.3s; }
         .header { background: var(--card-bg); padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); transition: background-color 0.5s, opacity 0.5s ease; }
         .header-left h2 { margin: 0; font-size: 1.1rem; color: var(--text-color); font-weight: 600; }
-        .header-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+        .header-controls { display: flex; gap: 8px; flex-wrap: wrap; position: relative; }
+        
+        .desktop-controls { display: flex; gap: 8px; flex-wrap: wrap; }
         
         .ctrl-btn { padding: 8px 12px; border: 1px solid transparent; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.85rem; color: white; transition: 0.2s; display: flex; align-items: center; gap: 5px; }
         .ctrl-btn.theater { background: #0288d1; } .ctrl-btn.pip { background: #00796b; } .ctrl-btn.cinema { background: #673ab7; }
         .ctrl-btn.mic { background: #444; } .ctrl-btn.mic.active { background: var(--primary); animation: pulse 1.5s infinite; color: #000; }
         .ctrl-btn.camera { background: #8e24aa; } .ctrl-btn.camera.active { background: #e53935; animation: pulse 2s infinite; }
         .ctrl-btn.music { background: #00897b; } .ctrl-btn.music.active { background: #ffeb3b; color: #000 !important; box-shadow: 0 0 10px #ffeb3b; }
-        .ctrl-btn.layout-btn { background: #ff5722; display: none; }
         body:not(.theme-derbi) .ctrl-btn.mic.active { color: white; }
         .ctrl-btn.speaker { background: #444; } .ctrl-btn.speaker.active { background: #ff9800; }
         .ctrl-btn.settings { background: #333; border-color: var(--border-color); } .ctrl-btn.leave { background: #2a2a2a; border: 1px solid #555; }
@@ -218,21 +219,46 @@
         .w-title { font-size: 2.5rem; font-weight: 900; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; text-shadow: 2px 2px 10px rgba(0,0,0,0.5); }
         .w-highlight { color: #ffd700; font-size: 4.5rem; display: block; margin: 15px 0; font-weight: 900; text-shadow: 0 0 20px rgba(255, 215, 0, 0.5); }
 
+        /* MOBİL DÜZENLEMELERİ (MENÜ & SAĞ ÜST SOHBET) */
         @media (max-width: 768px) {
             #btn-host { display: none !important; }
             #mobile-host-warning { display: block; }
             #btn-viewer { width: 100%; }
             .main-container { flex-direction: column; height: 100dvh; } 
-            .header { padding: 10px; flex-direction: column; align-items: flex-start; gap: 10px; }
+            
+            /* Header güncellemeleri - Sohbet balonu sağ üstte olacağı için header sağdan kırpılır */
+            .header { padding: 10px; padding-right: 70px; flex-direction: row; align-items: center; }
             .header-left h2 { font-size: 1rem; }
-            .header-controls { width: 100%; overflow-x: auto; padding-bottom: 5px; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
-            .ctrl-btn { flex-shrink: 0; padding: 8px 15px; font-size: 0.8rem; }
+            
+            /* Mobil Hamburger Menü Butonu */
+            #btn-mobile-menu { display: flex !important; background: #2196F3; }
+            
+            /* Masaüstü butonlarını mobilde açılır kapanır (Dropdown) yapıyoruz */
+            .desktop-controls { 
+                display: none; 
+                position: absolute; 
+                top: 55px; 
+                right: 15px; 
+                left: 15px; 
+                background: var(--card-bg); 
+                padding: 15px; 
+                border-radius: 8px; 
+                border: 1px solid var(--border-color); 
+                flex-wrap: wrap; 
+                box-shadow: 0 10px 30px rgba(0,0,0,0.9); 
+                z-index: 9999;
+            }
+            .desktop-controls.open { display: flex; }
+            .desktop-controls .ctrl-btn { flex: 1 1 calc(50% - 10px); justify-content: center; } 
+
             .video-section { flex: 1; height: auto; }
             .layout-resizer { display: none; } 
             
             .sidebar { display: none; } 
             .sidebar.floating { display: flex; width: 90% !important; height: 60vh !important; top: 10vh !important; left: 5% !important; }
-            #mobile-chat-bubble-btn { display: flex; }
+            
+            /* Mobil Sohbet Butonu Artık Sağ Üstte */
+            #mobile-chat-bubble-btn { display: flex; top: 15px; right: 15px; bottom: auto; width: 45px; height: 45px; font-size: 1.2rem; }
 
             .chat-messages { padding: 10px; }
             .chat-input-area { padding: 10px; padding-bottom: max(10px, env(safe-area-inset-bottom)); } 
@@ -252,7 +278,7 @@
 
     <div id="toast-container"></div>
 
-    <!-- Mobil Sohbet Baloncuğu -->
+    <!-- Mobil Sohbet Baloncuğu (Artık Sağ Üstte) -->
     <div id="mobile-chat-bubble-btn">💬</div>
 
     <!-- INBOX VE DESTEK MODALI -->
@@ -332,7 +358,7 @@
                     Altyazıları Göster ve Sesimi Çevir
                 </label>
                 <p style="font-size: 0.75rem; color: #aaa; margin-top: 5px; line-height: 1.3;">
-                    Bu özellik açıkken hoparlörün/sesin kapalı dahi olsa konuşanların söylediklerini ekranda yazı olarak okuyabilirsin. Aynı zamanda sen mikrofonunu açtığında da sesin altyazıya çevrilir.
+                    Bu özellik açıkken hoparlörün/sesin kapalı dahi olsa konuşanların söylediklerini ekranda yazı olarak okuyabilirsin. Aynı zamanda sen mikrofonunu açtığında da sesin altyazıya çevrilerek karşıya gönderilir.
                 </p>
             </div>
 
@@ -401,19 +427,28 @@
             <div class="video-section">
                 <div class="header">
                     <div class="header-left">
-                        <h2>🍿 Oda: <span id="room-display">...</span> (<span id="role-display">...</span>)</h2>
+                        <h2>🍿 Oda: <span id="room-display">...</span></h2>
+                        <span id="role-display" style="font-size: 0.8rem; color: #aaa;">...</span>
                     </div>
                     <div class="header-controls">
-                        <button id="btn-lobby-music" class="ctrl-btn music" title="Bekleme Salonu Müziği">🎵 Müzik</button>
-                        <button id="btn-camera" class="ctrl-btn camera" title="Yüzen Kameranı Aç">📷 Kamera</button>
-                        <button id="btn-theater" class="ctrl-btn theater" title="Sohbeti Daralt">↔️ Tiyatro</button>
-                        <button id="btn-pip" class="ctrl-btn pip" title="Küçük Pencere">📺 PiP</button>
-                        <button id="btn-cinema" class="ctrl-btn cinema" title="Işıkları Kapat">🎬 Sinema</button>
-                        <button id="btn-speaker" class="ctrl-btn speaker" title="Sohbet Sesleri">🔊 Sohbet</button>
-                        <button id="btn-mic" class="ctrl-btn mic" title="Mikrofon">🎤 Mikrofon</button>
+                        <!-- Mobil İçin Hamburger Menü -->
+                        <button id="btn-mobile-menu" class="ctrl-btn settings" style="display:none;">☰ Menü</button>
+                        
+                        <!-- Masaüstü Kontroller / Mobil Açılır Kapanır Menü -->
+                        <div id="collapsible-controls" class="desktop-controls">
+                            <button id="btn-lobby-music" class="ctrl-btn music" title="Bekleme Salonu Müziği">🎵 Müzik</button>
+                            <button id="btn-camera" class="ctrl-btn camera" title="Yüzen Kameranı Aç">📷 Kamera</button>
+                            <button id="btn-theater" class="ctrl-btn theater" title="Sohbeti Daralt">↔️ Tiyatro</button>
+                            <button id="btn-pip" class="ctrl-btn pip" title="Küçük Pencere">📺 PiP</button>
+                            <button id="btn-cinema" class="ctrl-btn cinema" title="Işıkları Kapat">🎬 Sinema</button>
+                            <button id="btn-speaker" class="ctrl-btn speaker" title="Sohbet Sesleri">🔊 Sohbet</button>
+                            <button id="btn-mic" class="ctrl-btn mic" title="Mikrofon">🎤 Mikrofon</button>
+                            <button id="btn-inbox-ingame" class="ctrl-btn settings" title="Mesajlar" style="background:#0288d1;">📬 Mesajlar</button>
+                            <button id="leave-btn" class="ctrl-btn leave">Çıkış</button>
+                        </div>
+                        
+                        <!-- Ayarlar Butonu (Dışarıda Kalır) -->
                         <button id="btn-settings" class="ctrl-btn settings" title="Ayarlar">⚙️</button>
-                        <button id="btn-inbox-ingame" class="ctrl-btn settings" title="Mesajlar" style="background:#0288d1;">📬</button>
-                        <button id="leave-btn" class="ctrl-btn leave">Çıkış</button>
                     </div>
                 </div>
                 
@@ -521,6 +556,7 @@
         let currentTheme = 'default';
         let isAdmin = false;
         let otherPeers = [];
+        let globalMicEnabled = false; // Kullanıcının mikrofon erişimini takip eder
 
         const videoElement = document.getElementById('main-video');
         const playOverlay = document.getElementById('play-overlay');
@@ -536,6 +572,11 @@
 
         const activeSpeakers = new Map();
 
+        // --- 📱 Mobil Hamburger Menü Yönetimi ---
+        document.getElementById('btn-mobile-menu').addEventListener('click', () => {
+            document.getElementById('collapsible-controls').classList.toggle('open');
+        });
+
         // --- 🧘‍♂️ AKILLI ZEN MODU ---
         let zenTimer = null;
         function wakeUpZen() {
@@ -548,6 +589,8 @@
             
             zenTimer = setTimeout(() => {
                 document.body.classList.add('zen-mode');
+                // Menü açıksa zen modunda otomatik kapanır
+                document.getElementById('collapsible-controls').classList.remove('open');
             }, 3000);
         }
         window.addEventListener('mousemove', wakeUpZen);
@@ -743,8 +786,7 @@
         // --- 🔤 SİNEMATİK CANLI ALTYAZI (Kusursuz Çoklu Kullanıcı & Bağımsız Okuma) ---
         let speechRecog = null;
         let isAiCaptionsEnabled = false;
-        let shouldBeRecognizing = false;
-        let activeCaptionLines = {}; // Ekranda aktif olarak yazılan altyazı elementlerini takip eder
+        let activeCaptionLines = {}; 
 
         document.getElementById('ai-caption-toggle').addEventListener('change', (e) => {
             isAiCaptionsEnabled = e.target.checked;
@@ -754,27 +796,8 @@
                 isAiCaptionsEnabled = false;
             } else {
                 if(isAiCaptionsEnabled) showToast("Sinematik Altyazı Açık", "success");
-                updateSpeechRecognitionState(); // Mikrofona göre durumu hemen ayarla
             }
         });
-
-        // Mikrofon açık mı ve çeviri yapılabilir mi kontrolü
-        function updateSpeechRecognitionState() {
-            if (!speechRecog) return;
-            const micIsOpen = micStream && (!isPttMode || isTalking);
-            
-            if (isAiCaptionsEnabled && micIsOpen) {
-                if (!shouldBeRecognizing) {
-                    shouldBeRecognizing = true;
-                    try { speechRecog.start(); } catch(e){}
-                }
-            } else {
-                if (shouldBeRecognizing) {
-                    shouldBeRecognizing = false;
-                    try { speechRecog.stop(); } catch(e){}
-                }
-            }
-        }
 
         if ('webkitSpeechRecognition' in window) {
             speechRecog = new webkitSpeechRecognition();
@@ -783,6 +806,9 @@
             speechRecog.lang = 'tr-TR';
             
             speechRecog.onresult = (e) => {
+                // Eğer Bas-Konuş modundaysak ve o an boşluk tuşuna basmıyorsak arkaplan seslerini yakalamayız
+                if (isPttMode && !isTalking) return; 
+                
                 let interimTranscript = '';
                 let finalTranscript = '';
                 
@@ -791,7 +817,6 @@
                     else interimTranscript += e.results[i][0].transcript;
                 }
                 
-                // Kendi altyazımızı ekrana basıp karşıya gönderiyoruz
                 if (finalTranscript.trim()) {
                     displayLiveCaption('local', myAvatar, myUsername, finalTranscript, true);
                     broadcastCaption(finalTranscript, true);
@@ -802,8 +827,8 @@
             };
 
             speechRecog.onend = () => {
-                // Eğer kullanıcı mikrofonda konuşmaya devam ediyorsa motoru güvenli şekilde yeniden başlat
-                if (shouldBeRecognizing) {
+                // Mikrofon yetkisi hala bendeyse ve bilerek kapatmadıysam döngüyü sürdür
+                if (globalMicEnabled) {
                     try { speechRecog.start(); } catch(e){}
                 }
             };
@@ -816,7 +841,6 @@
         }
 
         function broadcastCaption(text, isFinal) {
-            // peer.id göndermemizin sebebi; karşı tarafın kime ait bir metin olduğunu ayırmasını sağlamaktır.
             const capData = { type: 'LIVE_CAPTION', peerId: (peer ? peer.id : 'unknown'), text: text, isFinal: isFinal, avatar: myAvatar, username: myUsername };
             if (isHost) {
                 viewers.forEach(v => v.conn.send(capData));
@@ -826,20 +850,18 @@
         }
 
         function displayLiveCaption(id, avatar, username, text, isFinal) {
-            // Kullanıcı bu özelliği kapattıysa gelen verileri (başkaları atsa bile) ekranda göstermiyoruz.
+            // Yalnızca altyazı modunu açan kullanıcılar gelen metinleri ekranda görür
             if (!isAiCaptionsEnabled) return;
             
             const capContainer = document.getElementById('live-captions');
             let line = activeCaptionLines[id];
             
-            // Eğer bu kullanıcı ID'si için ekranda zaten güncellenen bir satır yoksa, yeni bir satır oluştur
             if (!line) {
                 line = document.createElement('div');
                 line.className = 'caption-line';
                 capContainer.appendChild(line);
                 activeCaptionLines[id] = line;
                 
-                // Ekranda en fazla 4 satır altyazı tut, eskileri sil
                 if(capContainer.children.length > 4) {
                     let oldest = capContainer.firstChild;
                     if(oldest.dataset.peerId) delete activeCaptionLines[oldest.dataset.peerId];
@@ -850,13 +872,12 @@
             line.dataset.peerId = id;
             line.innerHTML = `<span class="c-avatar">${avatar}</span> <span><span class="c-name">${username}:</span> <span class="c-text ${isFinal ? '' : 'interim'}">${text}</span></span>`;
             
-            // Eğer cümle bittiyse (isFinal), aktifler listesinden çıkar ve 4 saniye sonra ekranı temizle
             if (isFinal) {
                 delete activeCaptionLines[id];
                 setTimeout(() => {
                     if (line && line.parentNode) {
                         line.style.opacity = '0';
-                        setTimeout(() => line.remove(), 500); // Fading efektiyle zarifçe silinir
+                        setTimeout(() => line.remove(), 500);
                     }
                 }, 4000); 
             }
@@ -1080,7 +1101,6 @@
             else { 
                 if(micStream) micStream.getAudioTracks().forEach(t => t.enabled = true); pttBtnMobile.style.display = 'none'; if(micStream) { btnMic.innerHTML = "🎤 Mikrofon Açık"; btnMic.style.background = "#4CAF50"; } 
             }
-            updateSpeechRecognitionState(); // Mikrofonda konuşabilirlik durumu değiştiği için AI'yi güncelle
         });
 
         document.getElementById('whisper-mode-toggle').addEventListener('change', (e) => isWhisperMode = e.target.checked);
@@ -1107,19 +1127,18 @@
         document.getElementById('mic-select').addEventListener('change', (e) => selectedMicId = e.target.value);
         document.getElementById('speaker-select').addEventListener('change', (e) => { selectedSpeakerId = e.target.value; if (typeof videoElement.setSinkId !== 'undefined') { videoElement.setSinkId(selectedSpeakerId).catch(()=>{}); activeAudioElements.forEach(a => a.setSinkId(selectedSpeakerId).catch(()=>{})); } });
 
+        // Bu alanda sadece sesin gidip gelmesini kontrol ediyoruz. OS Sesinden kaçınmak için start/stop'ları kopardık.
         function startTalking() { 
             if(!isPttMode || !micStream || isTalking) return; 
             isTalking = true; 
             micStream.getAudioTracks().forEach(t => t.enabled = true); 
             pttBtnMobile.classList.add('talking'); btnMic.innerHTML = "🎙️ Konuşuluyor..."; btnMic.style.background = "#4CAF50"; 
-            updateSpeechRecognitionState(); 
         }
         function stopTalking() { 
             if(!isPttMode || !micStream || !isTalking) return; 
             isTalking = false; 
             micStream.getAudioTracks().forEach(t => t.enabled = false); 
             pttBtnMobile.classList.remove('talking'); btnMic.innerHTML = "🛑 Bas-Konuş Bekliyor"; btnMic.style.background = "#e50914"; 
-            updateSpeechRecognitionState(); 
         }
         
         window.addEventListener('keydown', (e) => { if (e.code === 'Space' && e.target.tagName !== 'INPUT' && isPttMode && micStream) { e.preventDefault(); startTalking(); } });
@@ -1189,6 +1208,9 @@
             if (peer) peer.destroy(); viewers.clear(); activeVoiceCalls.clear();
             activeAudioElements.forEach(a => a.remove()); activeAudioElements = [];
             
+            globalMicEnabled = false; // Ses tanıma motorunu durdurur
+            if(speechRecog) speechRecog.stop();
+
             document.getElementById('voice-avatars-container').innerHTML = ''; activeSpeakers.clear();
             document.getElementById('live-captions').innerHTML = ''; activeCaptionLines = {};
             document.querySelectorAll('.face-cam-bubble').forEach(e => e.remove()); window.toggleLobbyMusic(false);
@@ -1236,8 +1258,12 @@
                 micStream.getTracks().forEach(t => t.stop()); micStream = null;
                 btnMic.classList.remove('active'); btnMic.innerHTML = "🎤 Mikrofon"; btnMic.style.background = "#444";
                 activeVoiceCalls.forEach(call => call.close()); activeVoiceCalls.clear(); pttBtnMobile.style.display = 'none';
-                removeVoiceAvatar('local'); localAnalyser = null; showToast("Mikrofon kapatıldı.", "info");
-                updateSpeechRecognitionState();
+                removeVoiceAvatar('local'); localAnalyser = null; 
+                
+                globalMicEnabled = false; // Konuşma motorunu durdurur
+                if(speechRecog) speechRecog.stop();
+
+                showToast("Mikrofon kapatıldı.", "info");
             } else {
                 try {
                     const constraints = { audio: selectedMicId !== 'default' ? { deviceId: { exact: selectedMicId } } : true };
@@ -1252,7 +1278,11 @@
                     const el = createVoiceAvatarElement('local', myUsername, myAvatar); activeSpeakers.set('local', { analyser: localAnalyser, element: el });
                     
                     showToast("Sese bağlanıldı!", "success");
-                    updateSpeechRecognitionState();
+
+                    globalMicEnabled = true; // Konuşma motorunu Başlatır
+                    if(speechRecog) {
+                        try { speechRecog.start(); } catch(e){}
+                    }
 
                     const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar };
                     if (isHost) { viewers.forEach((v, pId) => { const call = peer.call(pId, micStream, { metadata: voiceMeta }); activeVoiceCalls.set(pId, call); }); } 
