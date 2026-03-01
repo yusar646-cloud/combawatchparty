@@ -688,6 +688,150 @@
 
         const activeSpeakers = new Map();
 
+        const supportedMediaConstraints = (navigator.mediaDevices && navigator.mediaDevices.getSupportedConstraints)
+            ? navigator.mediaDevices.getSupportedConstraints()
+            : {};
+        let localTalkMonitor = { interval: null, analyser: null, source: null, speaking: false };
+
+        function isOutputRoutingSupported() {
+            return window.isSecureContext && typeof HTMLMediaElement !== 'undefined' && 'setSinkId' in HTMLMediaElement.prototype;
+        }
+
+        async function applySinkToElement(el, sinkId, { silent = false } = {}) {
+            if (!el || !sinkId || sinkId === 'default') return true;
+            if (!isOutputRoutingSupported()) {
+                if (!silent) showToast("Hoparlör seçimi için site HTTPS altında ve desteklenen tarayıcıda açılmalı.", "error");
+                return false;
+            }
+            try {
+                await el.setSinkId(sinkId);
+                return true;
+            } catch (err) {
+                console.warn('setSinkId başarısız:', err);
+                if (!silent) showToast("Seçilen çıkış cihazına geçilemedi. Tarayıcı izni veya cihaz desteğini kontrol et.", "error");
+                return false;
+            }
+        }
+
+        async function applySelectedSpeakerToAll({ silent = false } = {}) {
+            const targets = [videoElement, ...activeAudioElements].filter(Boolean);
+            let ok = true;
+            for (const el of targets) {
+                const result = await applySinkToElement(el, selectedSpeakerId, { silent });
+                ok = ok && result;
+            }
+            return ok;
+        }
+
+        function getRemoteAudioVolume(audioEl) {
+            if (!audioEl) return 1;
+            if (isMobile) return 1.0; // Mobilde donanımsal AEC korunmalı.
+            const baseVol = document.getElementById('mix-chat-vol').value / 100;
+            const pVol = peerVolumes[audioEl.dataset.peerId] !== undefined ? peerVolumes[audioEl.dataset.peerId] : 1;
+            const whisperMul = audioEl.dataset.whisper === 'true' ? 0.3 : 1;
+            const duckMul = (!isPttMode && localTalkMonitor.speaking) ? 0.22 : 1; // Konuşurken karşı sesi otomatik düşür.
+            return Math.max(0, Math.min(1, baseVol * pVol * whisperMul * duckMul));
+        }
+
+        function refreshRemoteAudioVolumes() {
+            activeAudioElements.forEach(a => {
+                if (!a) return;
+                a.muted = isSpeakerMuted;
+                if (!isSpeakerMuted) a.volume = getRemoteAudioVolume(a);
+            });
+        }
+
+        function setLocalSpeakingState(nextState) {
+            if (localTalkMonitor.speaking === nextState) return;
+            localTalkMonitor.speaking = nextState;
+            refreshRemoteAudioVolumes();
+        }
+
+        function stopLocalTalkMonitor() {
+            if (localTalkMonitor.interval) clearInterval(localTalkMonitor.interval);
+            try { localTalkMonitor.source?.disconnect(); } catch (_) {}
+            try { localTalkMonitor.analyser?.disconnect(); } catch (_) {}
+            localTalkMonitor = { interval: null, analyser: null, source: null, speaking: false };
+            refreshRemoteAudioVolumes();
+        }
+
+        function startLocalTalkMonitor() {
+            stopLocalTalkMonitor();
+            if (!micStream || isPttMode) return;
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const source = audioCtx.createMediaStreamSource(micStream);
+                const analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 512;
+                analyser.smoothingTimeConstant = 0.65;
+                source.connect(analyser);
+
+                const data = new Uint8Array(analyser.fftSize);
+                let silentFrames = 0;
+
+                localTalkMonitor.source = source;
+                localTalkMonitor.analyser = analyser;
+                localTalkMonitor.interval = setInterval(() => {
+                    try {
+                        analyser.getByteTimeDomainData(data);
+                        let sum = 0;
+                        for (let i = 0; i < data.length; i++) {
+                            const normalized = (data[i] - 128) / 128;
+                            sum += normalized * normalized;
+                        }
+                        const rms = Math.sqrt(sum / data.length);
+                        if (rms > 0.035) {
+                            silentFrames = 0;
+                            setLocalSpeakingState(true);
+                        } else {
+                            silentFrames += 1;
+                            if (silentFrames >= 6) setLocalSpeakingState(false);
+                        }
+                    } catch (_) {
+                        stopLocalTalkMonitor();
+                    }
+                }, 90);
+            } catch (err) {
+                console.warn('Yerel konuşma izleme başlatılamadı:', err);
+            }
+        }
+
+        async function verifyAndHardenMicTrack(stream) {
+            const track = stream?.getAudioTracks?.()[0];
+            if (!track) return;
+
+            try { if ('contentHint' in track) track.contentHint = 'speech'; } catch (_) {}
+
+            try {
+                const currentSettings = track.getSettings ? track.getSettings() : {};
+                console.info('Mikrofon ayarları:', currentSettings);
+
+                if (currentSettings.channelCount && currentSettings.channelCount > 1 && track.applyConstraints) {
+                    try { await track.applyConstraints({ channelCount: 1 }); } catch (_) {}
+                }
+
+                if (currentSettings.echoCancellation === false) {
+                    document.getElementById('voice-mode-select').value = 'ptt';
+                    isPttMode = true;
+                    track.enabled = false;
+                    pttBtnMobile.style.display = 'flex';
+                    btnMic.innerHTML = "🛑<span class='hide-on-mobile'> Bekliyor</span>";
+                    btnMic.style.background = "#e50914";
+                    showToast("Cihaz yankı engellemeyi tam açamadı. Yankıyı kesmek için Bas-Konuş modu otomatik açıldı.", "error");
+                }
+            } catch (err) {
+                console.warn('Mikrofon ayarları doğrulanamadı:', err);
+            }
+        }
+
+        function buildDisplayMediaOptions() {
+            const audioOptions = {};
+            if (supportedMediaConstraints.restrictOwnAudio) audioOptions.restrictOwnAudio = true;
+            if (supportedMediaConstraints.suppressLocalAudioPlayback) audioOptions.suppressLocalAudioPlayback = true;
+            return { video: true, audio: Object.keys(audioOptions).length ? audioOptions : true };
+        }
+
+
         function renderAvatarHtml(avatarData, uid = '') {
             if(avatarData && avatarData.startsWith('data:image')) {
                 return `<img src="${avatarData}" class="avatar-uid-${uid}" data-uid="${uid}">`;
@@ -748,19 +892,15 @@
 
         document.getElementById('ua-vol-slider').addEventListener('input', (e) => {
             if(!selectedActionPeerId) return;
-            const vol = e.target.value / 100;
-            peerVolumes[selectedActionPeerId] = vol;
-            if (isMobile) return; // Mobilde JS slider ile ses değişimi yasaklandı.
-            const targetAudio = activeAudioElements.find(a => a.dataset.peerId === selectedActionPeerId);
-            if(targetAudio) targetAudio.volume = vol;
+            peerVolumes[selectedActionPeerId] = e.target.value / 100;
+            refreshRemoteAudioVolumes();
         });
 
         document.getElementById('ua-btn-mute').addEventListener('click', () => {
             if(!selectedActionPeerId) return;
             document.getElementById('ua-vol-slider').value = 0;
             peerVolumes[selectedActionPeerId] = 0;
-            const targetAudio = activeAudioElements.find(a => a.dataset.peerId === selectedActionPeerId);
-            if(targetAudio) targetAudio.volume = 0;
+            refreshRemoteAudioVolumes();
         });
 
         // --- SENKRONİZE MEDYA OYNATICI ---
@@ -1204,7 +1344,26 @@
         let selectedMicId = 'default', selectedSpeakerId = 'default'; let isPttMode = false, isWhisperMode = false, isTalking = false;
         document.getElementById('btn-settings').addEventListener('click', () => settingsModal.classList.add('active')); document.getElementById('btn-open-login-settings').addEventListener('click', () => settingsModal.classList.add('active')); document.getElementById('btn-close-settings').addEventListener('click', () => settingsModal.classList.remove('active'));
 
-        document.getElementById('voice-mode-select').addEventListener('change', (e) => { isPttMode = (e.target.value === 'ptt'); if(isPttMode && micStream) { micStream.getAudioTracks().forEach(t => t.enabled = false); pttBtnMobile.style.display = 'flex'; btnMic.innerHTML = "🛑 Bas-Konuş Bekliyor"; btnMic.style.background = "#e50914"; } else { if(micStream) micStream.getAudioTracks().forEach(t => t.enabled = true); pttBtnMobile.style.display = 'none'; if(micStream) { btnMic.innerHTML = "🎤 Mikrofon Açık"; btnMic.style.background = "#4CAF50"; } } });
+        document.getElementById('voice-mode-select').addEventListener('change', (e) => {
+            isPttMode = (e.target.value === 'ptt');
+            if(isPttMode && micStream) {
+                micStream.getAudioTracks().forEach(t => t.enabled = false);
+                pttBtnMobile.style.display = 'flex';
+                btnMic.innerHTML = "🛑 Bas-Konuş Bekliyor";
+                btnMic.style.background = "#e50914";
+                stopLocalTalkMonitor();
+            } else {
+                if(micStream) micStream.getAudioTracks().forEach(t => t.enabled = true);
+                pttBtnMobile.style.display = 'none';
+                if(micStream) {
+                    btnMic.innerHTML = "🎤 Mikrofon Açık";
+                    btnMic.style.background = "#4CAF50";
+                    startLocalTalkMonitor();
+                }
+            }
+            setLocalSpeakingState(false);
+            refreshRemoteAudioVolumes();
+        });
         document.getElementById('whisper-mode-toggle').addEventListener('change', (e) => isWhisperMode = e.target.checked);
         
         document.getElementById('mix-video-vol').addEventListener('input', (e) => { 
@@ -1212,43 +1371,35 @@
             const v = e.target.value / 100; videoElement.volume = v; syncVideo.volume = v; if(ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume(v * 100); 
         });
         
-        document.getElementById('mix-chat-vol').addEventListener('input', (e) => { 
-            if (isMobile) return; // AEC koruması
-            const vol = e.target.value / 100; 
-            activeAudioElements.forEach(a => { 
-                if(!a.muted) { 
-                    const pVol = peerVolumes[a.dataset.peerId] !== undefined ? peerVolumes[a.dataset.peerId] : 1; 
-                    a.volume = (a.dataset.whisper === 'true' ? vol * 0.3 : vol) * pVol; 
-                } 
-            }); 
+        document.getElementById('mix-chat-vol').addEventListener('input', () => { 
+            refreshRemoteAudioVolumes();
         });
 
         let isSpeakerMuted = false;
         btnSpeaker.addEventListener('click', () => {
             isSpeakerMuted = !isSpeakerMuted;
-            if (isSpeakerMuted) { btnSpeaker.classList.add('active'); btnSpeaker.innerHTML = "🔇 Sessiz"; activeAudioElements.forEach(a => a.muted = true); showToast("Sohbet sesleri kapatıldı.", "info"); } 
-            else { 
-                btnSpeaker.classList.remove('active'); btnSpeaker.innerHTML = "🔊 Sohbet"; 
-                const baseVol = document.getElementById('mix-chat-vol').value / 100;
-                activeAudioElements.forEach(a => { 
-                    a.muted = false; 
-                    if(isMobile) {
-                        a.volume = 1.0; // Donanım AEC kuralı
-                    } else {
-                        const pVol = peerVolumes[a.dataset.peerId] !== undefined ? peerVolumes[a.dataset.peerId] : 1; 
-                        a.volume = (a.dataset.whisper === 'true' ? baseVol * 0.3 : baseVol) * pVol; 
-                    }
-                }); 
+            if (isSpeakerMuted) {
+                btnSpeaker.classList.add('active');
+                btnSpeaker.innerHTML = "🔇 Sessiz";
+                refreshRemoteAudioVolumes();
+                showToast("Sohbet sesleri kapatıldı.", "info");
+            } else { 
+                btnSpeaker.classList.remove('active');
+                btnSpeaker.innerHTML = "🔊 Sohbet";
+                refreshRemoteAudioVolumes();
                 showToast("Sohbet sesleri açıldı.", "info"); 
             }
         });
 
         document.getElementById('btn-refresh-devices').addEventListener('click', async () => { try { await navigator.mediaDevices.getUserMedia({audio: true}); const devices = await navigator.mediaDevices.enumerateDevices(); const micSel = document.getElementById('mic-select'), spkSel = document.getElementById('speaker-select'); micSel.innerHTML = '<option value="default">Varsayılan Mikrofon</option>'; spkSel.innerHTML = '<option value="default">Varsayılan Hoparlör</option>'; devices.forEach(d => { if(d.kind === 'audioinput' && d.deviceId !== 'default') micSel.innerHTML += `<option value="${d.deviceId}">${d.label || 'Mikrofon '}</option>`; if(d.kind === 'audiooutput' && d.deviceId !== 'default') spkSel.innerHTML += `<option value="${d.deviceId}">${d.label || 'Hoparlör '}</option>`; }); showToast("Cihazlar listelendi", "success"); } catch(e) { showToast("Cihaz izni reddedildi!", "error"); } });
         document.getElementById('mic-select').addEventListener('change', (e) => selectedMicId = e.target.value);
-        document.getElementById('speaker-select').addEventListener('change', (e) => { selectedSpeakerId = e.target.value; if (typeof videoElement.setSinkId !== 'undefined') { videoElement.setSinkId(selectedSpeakerId).catch(()=>{}); activeAudioElements.forEach(a => a.setSinkId(selectedSpeakerId).catch(()=>{})); } });
+        document.getElementById('speaker-select').addEventListener('change', async (e) => {
+            selectedSpeakerId = e.target.value;
+            await applySelectedSpeakerToAll();
+        });
 
-        function startTalking() { if(!isPttMode || !micStream || isTalking) return; isTalking = true; micStream.getAudioTracks().forEach(t => t.enabled = true); pttBtnMobile.classList.add('talking'); btnMic.innerHTML = "🎙️ Konuşuluyor..."; btnMic.style.background = "#4CAF50"; }
-        function stopTalking() { if(!isPttMode || !micStream || !isTalking) return; isTalking = false; micStream.getAudioTracks().forEach(t => t.enabled = false); pttBtnMobile.classList.remove('talking'); btnMic.innerHTML = "🛑 Bas-Konuş"; btnMic.style.background = "#e50914"; }
+        function startTalking() { if(!isPttMode || !micStream || isTalking) return; isTalking = true; micStream.getAudioTracks().forEach(t => t.enabled = true); pttBtnMobile.classList.add('talking'); btnMic.innerHTML = "🎙️ Konuşuluyor..."; btnMic.style.background = "#4CAF50"; setLocalSpeakingState(true); }
+        function stopTalking() { if(!isPttMode || !micStream || !isTalking) return; isTalking = false; micStream.getAudioTracks().forEach(t => t.enabled = false); pttBtnMobile.classList.remove('talking'); btnMic.innerHTML = "🛑 Bas-Konuş"; btnMic.style.background = "#e50914"; setLocalSpeakingState(false); }
         window.addEventListener('keydown', (e) => { if (e.code === 'Space' && e.target.tagName !== 'INPUT' && isPttMode && micStream) { e.preventDefault(); startTalking(); } }); window.addEventListener('keyup', (e) => { if (e.code === 'Space' && e.target.tagName !== 'INPUT' && isPttMode) { e.preventDefault(); stopTalking(); } });
         pttBtnMobile.addEventListener('mousedown', startTalking); pttBtnMobile.addEventListener('mouseup', stopTalking); pttBtnMobile.addEventListener('mouseleave', stopTalking); pttBtnMobile.addEventListener('touchstart', (e) => { e.preventDefault(); startTalking(); }); pttBtnMobile.addEventListener('touchend', (e) => { e.preventDefault(); stopTalking(); });
 
@@ -1319,7 +1470,7 @@
                 const roomRef = ref(database, 'rooms/' + roomCode);
                 remove(roomRef); 
             }
-            if (myStream) myStream.getTracks().forEach(t => t.stop()); if (micStream) micStream.getTracks().forEach(t => t.stop()); if(faceCamStream) faceCamStream.getTracks().forEach(t=>t.stop());
+            if (myStream) myStream.getTracks().forEach(t => t.stop()); if (micStream) { stopLocalTalkMonitor(); micStream.getTracks().forEach(t => t.stop()); } if(faceCamStream) faceCamStream.getTracks().forEach(t=>t.stop());
             if (peer) peer.destroy(); viewers.clear(); activeVoiceCalls.clear();
             
             // Tüm zombi etiketleri temizle
@@ -1388,12 +1539,14 @@
                 call.on('close', () => { 
                     audio.pause(); audio.removeAttribute('src'); audio.srcObject = null; audio.remove(); 
                     removeVoiceAvatar(call.peer); activeAudioElements = activeAudioElements.filter(a => a !== audio); 
+                    refreshRemoteAudioVolumes();
                 });
             });
         }
 
         btnMic.addEventListener('click', async () => {
             if (micStream) {
+                stopLocalTalkMonitor();
                 micStream.getTracks().forEach(t => t.stop()); micStream = null;
                 btnMic.classList.remove('active'); btnMic.innerHTML = "🎤<span class='hide-on-mobile'> Mikrofon</span>"; btnMic.style.background = "#444";
                 activeVoiceCalls.forEach(call => call.close()); activeVoiceCalls.clear(); pttBtnMobile.style.display = 'none';
@@ -1526,7 +1679,7 @@
                 if (isMobile) return showToast("Ekran paylaşımı mobilde desteklenmiyor.", "error");
                 try {
                     if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) throw new Error("API");
-                    myStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+                    myStream = await navigator.mediaDevices.getDisplayMedia(buildDisplayMediaOptions());
                 } catch (err) { try { myStream = await navigator.mediaDevices.getDisplayMedia({ video: true }); showToast("Sistem sesi aktarılamıyor, sessiz yayın.", "info"); } catch (err2) { return showToast("Ekran paylaşımı reddedildi.", "error"); } }
                 videoElement.srcObject = myStream; videoElement.muted = true; videoElement.style.display = 'block'; syncMediaContainer.style.display = 'none';
                 if(myStream.getVideoTracks().length > 0) myStream.getVideoTracks()[0].onended = () => { showToast("Paylaşım durduruldu.", "error"); showWrappedAndDisconnect(); };
@@ -1614,7 +1767,7 @@
             startRoomHeartbeat(); // Yeni host kalp atışını devralır
 
             if (mode === 'screen') {
-                try { myStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true }); } catch (err) { try { myStream = await navigator.mediaDevices.getDisplayMedia({ video: true }); } catch (err2) { return showToast("Ekran paylaşım izni verilmedi!", "error"); } }
+                try { myStream = await navigator.mediaDevices.getDisplayMedia(buildDisplayMediaOptions()); } catch (err) { try { myStream = await navigator.mediaDevices.getDisplayMedia({ video: true }); } catch (err2) { return showToast("Ekran paylaşım izni verilmedi!", "error"); } }
                 videoElement.srcObject = myStream; videoElement.muted = true; 
             } else { myStream = null; videoElement.style.display = 'none'; syncMediaContainer.style.display = 'block'; document.getElementById('sync-media-modal').classList.add('active'); }
             document.getElementById('role-display').innerText = "Yayıncı";
