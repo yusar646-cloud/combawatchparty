@@ -223,8 +223,11 @@
         .w-title { font-size: 2.5rem; font-weight: 900; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; text-shadow: 2px 2px 10px rgba(0,0,0,0.5); }
         .w-highlight { color: #ffd700; font-size: 4.5rem; display: block; margin: 15px 0; font-weight: 900; text-shadow: 0 0 20px rgba(255, 215, 0, 0.5); }
 
-        /* MOBİL DÜZENLEMELERİ */
+        /* MOBİL DÜZENLEMELERİ (Donanımsal AEC Koruması için ses karıştırıcı gizlendi) */
         @media (max-width: 768px) {
+            .setting-group.mixer { display: none !important; }
+            .setting-group.ua-volume { display: none !important; }
+            
             .hide-on-desktop { display: flex !important; align-items: center; justify-content: center; }
             .hide-on-mobile { display: none !important; }
             #btn-host-screen { display: none !important; } #mobile-host-warning { display: block; } 
@@ -289,7 +292,7 @@
                 </div>
             </div>
             
-            <div class="setting-group" id="ua-volume-group">
+            <div class="setting-group ua-volume" id="ua-volume-group">
                 <label>🎚️ Kullanıcı Ses Seviyesi</label>
                 <div style="display:flex; align-items:center; gap:10px;">
                     <input type="range" id="ua-vol-slider" min="0" max="100" value="100">
@@ -418,7 +421,7 @@
                 </label>
             </div>
 
-            <div class="setting-group">
+            <div class="setting-group mixer">
                 <label>🔊 Ses Karıştırıcı</label>
                 <span style="font-size:0.8rem; color:#888;">Ana Film Sesi</span>
                 <input type="range" id="mix-video-vol" min="0" max="100" value="100">
@@ -747,7 +750,7 @@
             if(!selectedActionPeerId) return;
             const vol = e.target.value / 100;
             peerVolumes[selectedActionPeerId] = vol;
-            if (isMobile) return; 
+            if (isMobile) return; // Mobilde JS slider ile ses değişimi yasaklandı.
             const targetAudio = activeAudioElements.find(a => a.dataset.peerId === selectedActionPeerId);
             if(targetAudio) targetAudio.volume = vol;
         });
@@ -1203,10 +1206,14 @@
 
         document.getElementById('voice-mode-select').addEventListener('change', (e) => { isPttMode = (e.target.value === 'ptt'); if(isPttMode && micStream) { micStream.getAudioTracks().forEach(t => t.enabled = false); pttBtnMobile.style.display = 'flex'; btnMic.innerHTML = "🛑 Bas-Konuş Bekliyor"; btnMic.style.background = "#e50914"; } else { if(micStream) micStream.getAudioTracks().forEach(t => t.enabled = true); pttBtnMobile.style.display = 'none'; if(micStream) { btnMic.innerHTML = "🎤 Mikrofon Açık"; btnMic.style.background = "#4CAF50"; } } });
         document.getElementById('whisper-mode-toggle').addEventListener('change', (e) => isWhisperMode = e.target.checked);
-        document.getElementById('mix-video-vol').addEventListener('input', (e) => { const v = e.target.value / 100; videoElement.volume = v; syncVideo.volume = v; if(ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume(v * 100); });
+        
+        document.getElementById('mix-video-vol').addEventListener('input', (e) => { 
+            if(isMobile) return; // AEC koruması için mobilde js ile ses değişimi iptal
+            const v = e.target.value / 100; videoElement.volume = v; syncVideo.volume = v; if(ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume(v * 100); 
+        });
         
         document.getElementById('mix-chat-vol').addEventListener('input', (e) => { 
-            if (isMobile) return; 
+            if (isMobile) return; // AEC koruması
             const vol = e.target.value / 100; 
             activeAudioElements.forEach(a => { 
                 if(!a.muted) { 
@@ -1226,7 +1233,7 @@
                 activeAudioElements.forEach(a => { 
                     a.muted = false; 
                     if(isMobile) {
-                        a.volume = 0.85; // Mobilde klibi önlemek için hafif kısık kalır
+                        a.volume = 1.0; // Donanım AEC kuralı
                     } else {
                         const pVol = peerVolumes[a.dataset.peerId] !== undefined ? peerVolumes[a.dataset.peerId] : 1; 
                         a.volume = (a.dataset.whisper === 'true' ? baseVol * 0.3 : baseVol) * pVol; 
@@ -1314,7 +1321,12 @@
             }
             if (myStream) myStream.getTracks().forEach(t => t.stop()); if (micStream) micStream.getTracks().forEach(t => t.stop()); if(faceCamStream) faceCamStream.getTracks().forEach(t=>t.stop());
             if (peer) peer.destroy(); viewers.clear(); activeVoiceCalls.clear();
-            activeAudioElements.forEach(a => a.remove()); activeAudioElements = [];
+            
+            // Tüm zombi etiketleri temizle
+            activeAudioElements.forEach(a => {
+                a.pause(); a.removeAttribute('src'); a.srcObject = null; a.remove();
+            }); 
+            activeAudioElements = [];
             
             globalMicEnabled = false; 
 
@@ -1335,9 +1347,14 @@
         function handleIncomingVoice(call) {
             call.answer();
             call.on('stream', audioStream => {
-                // HAYALET SES ETİKETİ TEMİZLİĞİ
+                // ZOMBİ SES ETİKETİ TEMİZLİĞİ (Ramden ve Ekrandan Siler - Sonsuz Yankıyı Engeller)
                 const existingAudio = document.querySelector(`audio[data-peer-id="${call.peer}"]`);
-                if (existingAudio) { existingAudio.remove(); }
+                if (existingAudio) { 
+                    existingAudio.pause();
+                    existingAudio.removeAttribute('src');
+                    existingAudio.srcObject = null;
+                    existingAudio.remove(); 
+                }
                 activeAudioElements = activeAudioElements.filter(a => a.dataset.peerId !== call.peer);
                 
                 if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -1359,17 +1376,19 @@
                 if(typeof audio.setSinkId !== 'undefined' && selectedSpeakerId !== 'default') audio.setSinkId(selectedSpeakerId).catch(()=>{});
                 
                 if (isMobile) {
-                    // MOBİL İÇİN CLIPPING ÖNLEYİCİ: AEC'nin çalışması için seste fiziksel patlama olmaması şarttır
-                    audio.volume = 0.85; 
+                    audio.volume = 1.0; // MOBİLDE SES KISILIRSA AEC BOZULUR. KESİNLİKLE 1.0 KALMALI.
                 } else {
                     const baseVol = document.getElementById('mix-chat-vol').value / 100; const pVol = peerVolumes[call.peer] !== undefined ? peerVolumes[call.peer] : 1;
                     audio.volume = (isWhisper ? baseVol * 0.3 : baseVol) * pVol;
                 }
                 
                 document.body.appendChild(audio); activeAudioElements.push(audio);
-                audio.play().catch(e => console.warn("Ses otomatik oynatılamadı. Cihaz etkileşimi bekleniyor.", e));
+                audio.play().catch(e => console.warn("Ses otomatik oynatılamadı.", e));
 
-                call.on('close', () => { audio.remove(); removeVoiceAvatar(call.peer); activeAudioElements = activeAudioElements.filter(a => a !== audio); });
+                call.on('close', () => { 
+                    audio.pause(); audio.removeAttribute('src'); audio.srcObject = null; audio.remove(); 
+                    removeVoiceAvatar(call.peer); activeAudioElements = activeAudioElements.filter(a => a !== audio); 
+                });
             });
         }
 
@@ -1383,33 +1402,28 @@
                 showToast("Mikrofon kapatıldı.", "info");
             } else {
                 try {
-                    // PC VE MOBİL İÇİN ÇİFT MOTORLU SES YAKALAMA (ÇÖZÜM 1)
-                    let audioConstraints = {};
+                    // DİSCORD VE GOOGLE MEET KALİTESİNDE MODERN WEB-RTC KISITLAMALARI
+                    let audioConstraints = {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                        channelCount: 1,
+                        sampleRate: 48000
+                    };
 
-                    if (isMobile) {
-                        // Mobil kullanıcılar için agresif Donanımsal & Yazılımsal AEC ayarları
-                        audioConstraints = {
-                            echoCancellation: true,
-                            noiseSuppression: true,
-                            autoGainControl: true, // Hoparlör patlamasında sesi otomatik kısmalı!
-                            channelCount: 1,       // Mono
-                            sampleRate: 48000,
-                            // Modern tarayıcı eklentileri
-                            googEchoCancellation: true,
-                            googAutoGainControl: true,
-                            googNoiseSuppression: true,
-                            googHighpassFilter: true 
-                        };
-                    } else {
-                        // PC kullanıcıları için maksimum kalite Discord ayarları
-                        audioConstraints = {
-                            echoCancellation: true,
-                            noiseSuppression: true,
-                            autoGainControl: false, // Sesin zayıflamaması için
-                            channelCount: 1, 
-                            sampleRate: 48000
-                        };
-                    }
+                    // İleri Düzey Google AEC (Acoustic Echo Cancellation) Filtreleri
+                    const advancedConstraints = {
+                        googEchoCancellation: true,
+                        googExperimentalEchoCancellation: true,
+                        googNoiseSuppression: true,
+                        googExperimentalNoiseSuppression: true,
+                        googHighpassFilter: true,
+                        googAudioMirroring: false,
+                        googAutoGainControl: true
+                    };
+
+                    Object.assign(audioConstraints, advancedConstraints);
+                    audioConstraints.advanced = [advancedConstraints]; // Bazı mobil tarayıcılar bu formatı zorunlu kılar.
 
                     const constraints = { audio: audioConstraints };
                     if (selectedMicId !== 'default') constraints.audio.deviceId = { exact: selectedMicId };
