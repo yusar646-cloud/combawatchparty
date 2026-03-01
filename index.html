@@ -706,9 +706,9 @@
 
         function applyVoiceEffect(rawStream) {
             // GÜNCELLEME: YANKI (ECHO) KESİN ÇÖZÜMÜ
-            // Ses efekti seçilmemişse "AudioContext" oluşturma. Doğrudan rawStream dön.
-            // Bu sayede tarayıcının yerleşik yankı iptal motoru bozulmadan çalışmaya devam eder.
-            if (currentVoiceEffect === 'none') {
+            // Mobil cihazlarda AudioContext içinden mikrofonu geçirmek yankı iptalini kesin bozar.
+            // Bu yüzden mobilde veya efekt seçilmediğinde doğrudan ham ses (rawStream) gönderilir.
+            if (currentVoiceEffect === 'none' || isMobile) {
                 if (audioCtxProcessing) { audioCtxProcessing.close(); audioCtxProcessing = null; }
                 return rawStream;
             }
@@ -807,6 +807,7 @@
             if(!selectedActionPeerId) return;
             const vol = e.target.value / 100;
             peerVolumes[selectedActionPeerId] = vol;
+            if (isMobile) return; // Mobilde bireysel sesi kısmak AEC bozar, bu yüzden JavaScript dinleyicisi by-pass edilir.
             const targetAudio = activeAudioElements.find(a => a.dataset.peerId === selectedActionPeerId);
             if(targetAudio) targetAudio.volume = vol;
         });
@@ -816,7 +817,7 @@
             document.getElementById('ua-vol-slider').value = 0;
             peerVolumes[selectedActionPeerId] = 0;
             const targetAudio = activeAudioElements.find(a => a.dataset.peerId === selectedActionPeerId);
-            if(targetAudio) targetAudio.volume = 0;
+            if(targetAudio) targetAudio.volume = 0; // Mute AEC'yi bozmaz, sadece sesi tamamen kapatır.
         });
 
         // --- SENKRONİZE MEDYA OYNATICI ---
@@ -1256,7 +1257,17 @@
         document.getElementById('voice-mode-select').addEventListener('change', (e) => { isPttMode = (e.target.value === 'ptt'); if(isPttMode && micStream) { micStream.getAudioTracks().forEach(t => t.enabled = false); pttBtnMobile.style.display = 'flex'; btnMic.innerHTML = "🛑 Bas-Konuş Bekliyor"; btnMic.style.background = "#e50914"; } else { if(micStream) micStream.getAudioTracks().forEach(t => t.enabled = true); pttBtnMobile.style.display = 'none'; if(micStream) { btnMic.innerHTML = "🎤 Mikrofon Açık"; btnMic.style.background = "#4CAF50"; } } });
         document.getElementById('whisper-mode-toggle').addEventListener('change', (e) => isWhisperMode = e.target.checked);
         document.getElementById('mix-video-vol').addEventListener('input', (e) => { const v = e.target.value / 100; videoElement.volume = v; syncVideo.volume = v; if(ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume(v * 100); });
-        document.getElementById('mix-chat-vol').addEventListener('input', (e) => { const vol = e.target.value / 100; activeAudioElements.forEach(a => { if(!a.muted) { const pVol = peerVolumes[a.dataset.peerId] !== undefined ? peerVolumes[a.dataset.peerId] : 1; a.volume = (a.dataset.whisper === 'true' ? vol * 0.3 : vol) * pVol; } }); });
+        
+        document.getElementById('mix-chat-vol').addEventListener('input', (e) => { 
+            if (isMobile) return; // Mobilde JS üzerinden sesi değiştirme, AEC bozulmasın
+            const vol = e.target.value / 100; 
+            activeAudioElements.forEach(a => { 
+                if(!a.muted) { 
+                    const pVol = peerVolumes[a.dataset.peerId] !== undefined ? peerVolumes[a.dataset.peerId] : 1; 
+                    a.volume = (a.dataset.whisper === 'true' ? vol * 0.3 : vol) * pVol; 
+                } 
+            }); 
+        });
 
         let isSpeakerMuted = false;
         btnSpeaker.addEventListener('click', () => {
@@ -1265,7 +1276,15 @@
             else { 
                 btnSpeaker.classList.remove('active'); btnSpeaker.innerHTML = "🔊 Sohbet"; 
                 const baseVol = document.getElementById('mix-chat-vol').value / 100;
-                activeAudioElements.forEach(a => { a.muted = false; const pVol = peerVolumes[a.dataset.peerId] !== undefined ? peerVolumes[a.dataset.peerId] : 1; a.volume = (a.dataset.whisper === 'true' ? baseVol * 0.3 : baseVol) * pVol; }); 
+                activeAudioElements.forEach(a => { 
+                    a.muted = false; 
+                    if(isMobile) {
+                        a.volume = 1.0; // AEC koruması
+                    } else {
+                        const pVol = peerVolumes[a.dataset.peerId] !== undefined ? peerVolumes[a.dataset.peerId] : 1; 
+                        a.volume = (a.dataset.whisper === 'true' ? baseVol * 0.3 : baseVol) * pVol; 
+                    }
+                }); 
                 showToast("Sohbet sesleri açıldı.", "info"); 
             }
         });
@@ -1390,8 +1409,13 @@
                 const isWhisper = call.metadata?.whisper; audio.dataset.whisper = isWhisper ? 'true' : 'false';
                 if(typeof audio.setSinkId !== 'undefined' && selectedSpeakerId !== 'default') audio.setSinkId(selectedSpeakerId).catch(()=>{});
                 
-                const baseVol = document.getElementById('mix-chat-vol').value / 100; const pVol = peerVolumes[call.peer] !== undefined ? peerVolumes[call.peer] : 1;
-                audio.volume = (isWhisper ? baseVol * 0.3 : baseVol) * pVol;
+                // Mobil cihazlarda volume değiştirmek Donanımsal Yankı Engelleyiciyi (AEC) bozar!
+                if (isMobile) {
+                    audio.volume = 1.0; 
+                } else {
+                    const baseVol = document.getElementById('mix-chat-vol').value / 100; const pVol = peerVolumes[call.peer] !== undefined ? peerVolumes[call.peer] : 1;
+                    audio.volume = (isWhisper ? baseVol * 0.3 : baseVol) * pVol;
+                }
                 
                 document.body.appendChild(audio); activeAudioElements.push(audio);
                 audio.play().catch(e => console.warn("Ses otomatik oynatılamadı. Cihaz etkileşimi bekleniyor.", e));
@@ -1412,10 +1436,11 @@
                 showToast("Mikrofon kapatıldı.", "info");
             } else {
                 try {
+                    // Modern standartlara uygun, gereksiz prefixlerden arındırılmış constraints.
                     const constraints = { 
                         audio: selectedMicId !== 'default' 
-                               ? { deviceId: { exact: selectedMicId }, echoCancellation: true, noiseSuppression: true, autoGainControl: true, googEchoCancellation: true, googNoiseSuppression: true, googHighpassFilter: true } 
-                               : { echoCancellation: true, noiseSuppression: true, autoGainControl: true, googEchoCancellation: true, googNoiseSuppression: true, googHighpassFilter: true } 
+                               ? { deviceId: { exact: selectedMicId }, echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+                               : { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
                     };
                     micStream = await navigator.mediaDevices.getUserMedia(constraints);
                     
@@ -1424,8 +1449,6 @@
                     
                     currentProcessedStream = applyVoiceEffect(micStream);
 
-                    // YANKI ÇÖZÜMÜ: Yerel mikrofonu kesinlikle AudioContext'e (localAnalyser) bağlamıyoruz!
-                    
                     const el = createVoiceAvatarElement('local', myUsername, myAvatar, myUid); 
                     activeSpeakers.set('local', { analyser: null, element: el, isLocal: true });
                     
