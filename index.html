@@ -382,9 +382,21 @@
             <div class="setting-group">
                 <label>Profil Avatarı & Resmi</label>
                 <div class="avatar-selector" id="avatar-selector-container">
-                    <div class="avatar-option selected" data-val="👤">👤</div><div class="avatar-option" data-val="🦊">🦊</div>
-                    <div class="avatar-option" data-val="🐱">🐱</div><div class="avatar-option" data-val="🐼">🐼</div>
-                    <div class="avatar-option" data-val="🦁">🦁</div><div class="avatar-option" data-val="👽">👽</div>
+                    <div class="avatar-option selected" data-val="👤">👤</div>
+                    <div class="avatar-option" data-val="😎">😎</div>
+                    <div class="avatar-option" data-val="🤠">🤠</div>
+                    <div class="avatar-option" data-val="🤖">🤖</div>
+                    <div class="avatar-option" data-val="👽">👽</div>
+                    <div class="avatar-option" data-val="👾">👾</div>
+                    <div class="avatar-option" data-val="🦊">🦊</div>
+                    <div class="avatar-option" data-val="🐱">🐱</div>
+                    <div class="avatar-option" data-val="🐼">🐼</div>
+                    <div class="avatar-option" data-val="🦁">🦁</div>
+                    <div class="avatar-option" data-val="🐯">🐯</div>
+                    <div class="avatar-option" data-val="🐶">🐶</div>
+                    <div class="avatar-option" data-val="🦉">🦉</div>
+                    <div class="avatar-option" data-val="🦄">🦄</div>
+                    <div class="avatar-option" data-val="🦖">🦖</div>
                 </div>
                 <div style="margin-top: 10px; text-align: center;">
                     <label class="custom-file-upload">
@@ -974,7 +986,14 @@
                 myUid = user.uid; myUsername = user.displayName || user.email.split('@')[0]; isAdmin = (user.email === 'yusar646@gmail.com');
                 get(ref(database, 'users/' + myUid + '/avatar')).then(snap => {
                     if (snap.exists() && snap.val()) {
-                        myAvatar = snap.val(); const customOpt = document.createElement('div'); customOpt.className = 'avatar-option selected'; customOpt.innerHTML = `<img src="${myAvatar}">`; document.getElementById('avatar-selector-container').appendChild(customOpt);
+                        myAvatar = snap.val(); 
+                        document.querySelectorAll('.avatar-option').forEach(a => a.classList.remove('selected'));
+                        const existingOpt = Array.from(document.querySelectorAll('.avatar-option')).find(el => el.dataset.val === myAvatar);
+                        if(existingOpt) {
+                            existingOpt.classList.add('selected');
+                        } else {
+                            const customOpt = document.createElement('div'); customOpt.className = 'avatar-option selected'; customOpt.dataset.val = myAvatar; customOpt.innerHTML = `<img src="${myAvatar}">`; document.getElementById('avatar-selector-container').appendChild(customOpt);
+                        }
                     }
                 });
 
@@ -1207,7 +1226,7 @@
                 activeAudioElements.forEach(a => { 
                     a.muted = false; 
                     if(isMobile) {
-                        a.volume = 1.0; 
+                        a.volume = 0.85; // Mobilde klibi önlemek için hafif kısık kalır
                     } else {
                         const pVol = peerVolumes[a.dataset.peerId] !== undefined ? peerVolumes[a.dataset.peerId] : 1; 
                         a.volume = (a.dataset.whisper === 'true' ? baseVol * 0.3 : baseVol) * pVol; 
@@ -1316,7 +1335,7 @@
         function handleIncomingVoice(call) {
             call.answer();
             call.on('stream', audioStream => {
-                // HAYALET SES ETİKETİ TEMİZLİĞİ (GİZLİ YANKIYI ENGELLER)
+                // HAYALET SES ETİKETİ TEMİZLİĞİ
                 const existingAudio = document.querySelector(`audio[data-peer-id="${call.peer}"]`);
                 if (existingAudio) { existingAudio.remove(); }
                 activeAudioElements = activeAudioElements.filter(a => a.dataset.peerId !== call.peer);
@@ -1340,7 +1359,8 @@
                 if(typeof audio.setSinkId !== 'undefined' && selectedSpeakerId !== 'default') audio.setSinkId(selectedSpeakerId).catch(()=>{});
                 
                 if (isMobile) {
-                    audio.volume = 1.0; 
+                    // MOBİL İÇİN CLIPPING ÖNLEYİCİ: AEC'nin çalışması için seste fiziksel patlama olmaması şarttır
+                    audio.volume = 0.85; 
                 } else {
                     const baseVol = document.getElementById('mix-chat-vol').value / 100; const pVol = peerVolumes[call.peer] !== undefined ? peerVolumes[call.peer] : 1;
                     audio.volume = (isWhisper ? baseVol * 0.3 : baseVol) * pVol;
@@ -1363,17 +1383,35 @@
                 showToast("Mikrofon kapatıldı.", "info");
             } else {
                 try {
-                    // DOĞRUDAN DISCORD/WHATSAPP SES KALİTESİ (OPUS / 48kHz / MONO)
-                    const constraints = { 
-                        audio: { 
-                            echoCancellation: true, 
-                            noiseSuppression: true, 
-                            autoGainControl: false, // Sesin aniden kısılmasını önler
-                            channelCount: 1,        // Mono ses, cihazın gürültü/yankı engelleyicisini mükemmelleştirir
-                            sampleRate: 48000,      // Maksimum netlik (Opus yerel desteği)
-                            sampleSize: 16
-                        } 
-                    };
+                    // PC VE MOBİL İÇİN ÇİFT MOTORLU SES YAKALAMA (ÇÖZÜM 1)
+                    let audioConstraints = {};
+
+                    if (isMobile) {
+                        // Mobil kullanıcılar için agresif Donanımsal & Yazılımsal AEC ayarları
+                        audioConstraints = {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true, // Hoparlör patlamasında sesi otomatik kısmalı!
+                            channelCount: 1,       // Mono
+                            sampleRate: 48000,
+                            // Modern tarayıcı eklentileri
+                            googEchoCancellation: true,
+                            googAutoGainControl: true,
+                            googNoiseSuppression: true,
+                            googHighpassFilter: true 
+                        };
+                    } else {
+                        // PC kullanıcıları için maksimum kalite Discord ayarları
+                        audioConstraints = {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: false, // Sesin zayıflamaması için
+                            channelCount: 1, 
+                            sampleRate: 48000
+                        };
+                    }
+
+                    const constraints = { audio: audioConstraints };
                     if (selectedMicId !== 'default') constraints.audio.deviceId = { exact: selectedMicId };
 
                     micStream = await navigator.mediaDevices.getUserMedia(constraints);
