@@ -406,18 +406,6 @@
                 </label>
             </div>
 
-            <div class="setting-group hide-on-mobile">
-                <label>🎙️ Ses Değiştirici Efekt</label>
-                <select id="voice-effect-select">
-                    <option value="none">Normal Ses</option>
-                    <option value="robot">🤖 Robot Sesi</option>
-                    <option value="vader">🌌 Derin Ses (Vader)</option>
-                    <option value="alien">👽 Uzaylı (Titreşimli)</option>
-                    <option value="megaphone">📢 Megafon / Telsiz</option>
-                </select>
-                <p style="font-size: 0.75rem; color: #aaa; margin-top: 5px;">* Değişikliğin aktif olması için mikrofonu kapatıp tekrar açın.</p>
-            </div>
-
             <div class="setting-group">
                 <label>🔊 Ses Karıştırıcı</label>
                 <span style="font-size:0.8rem; color:#888;">Ana Film Sesi</span>
@@ -638,8 +626,6 @@
 
         let otherPeers = [];
         let zenTimer = null;
-        
-        let currentProcessedStream = null;
 
         function wakeUpZen() {
             document.body.classList.remove('zen-mode');
@@ -686,58 +672,6 @@
         const mainUiContainer = document.getElementById('main-ui-container');
 
         const activeSpeakers = new Map();
-
-        // --- SES DEĞİŞTİRİCİ (VOICE CHANGER) ---
-        let currentVoiceEffect = 'none';
-        let audioCtxProcessing = null;
-
-        document.getElementById('voice-effect-select').addEventListener('change', (e) => {
-            currentVoiceEffect = e.target.value;
-        });
-
-        function makeDistortionCurve(amount) {
-          const k = amount; const n_samples = 44100; const curve = new Float32Array(n_samples); const deg = Math.PI / 180;
-          for (let i = 0; i < n_samples; ++i) {
-            const x = i * 2 / n_samples - 1;
-            curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
-          }
-          return curve;
-        }
-
-        function applyVoiceEffect(rawStream) {
-            // YANKI İPTALİ KORUMASI: İster PC, ister Mobil olsun; Efekt YOKSA asla AudioContext'e girme.
-            // Bu sayede tarayıcının donanımsal Echo Cancellation özelliği bozulmaz.
-            if (currentVoiceEffect === 'none') {
-                if (audioCtxProcessing) { audioCtxProcessing.close(); audioCtxProcessing = null; }
-                return rawStream;
-            }
-
-            if (audioCtxProcessing) {
-                audioCtxProcessing.close();
-            }
-            audioCtxProcessing = new (window.AudioContext || window.webkitAudioContext)();
-            
-            const source = audioCtxProcessing.createMediaStreamSource(rawStream);
-            const dest = audioCtxProcessing.createMediaStreamDestination();
-
-            if (currentVoiceEffect === 'robot') {
-                const osc = audioCtxProcessing.createOscillator(); osc.type = 'sawtooth'; osc.frequency.value = 50;
-                const gain = audioCtxProcessing.createGain(); osc.connect(gain.gain); source.connect(gain); gain.connect(dest); osc.start();
-            } else if (currentVoiceEffect === 'vader') {
-                const lp = audioCtxProcessing.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 400;
-                const distortion = audioCtxProcessing.createWaveShaper(); distortion.curve = makeDistortionCurve(50);
-                source.connect(lp); lp.connect(distortion); distortion.connect(dest);
-            } else if (currentVoiceEffect === 'alien') {
-                const osc = audioCtxProcessing.createOscillator(); osc.type = 'sine'; osc.frequency.value = 6; 
-                const gain = audioCtxProcessing.createGain(); osc.connect(gain.gain); source.connect(gain); gain.connect(dest); osc.start();
-            } else if (currentVoiceEffect === 'megaphone') {
-                const hp = audioCtxProcessing.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1000;
-                const lp = audioCtxProcessing.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3000;
-                const dist = audioCtxProcessing.createWaveShaper(); dist.curve = makeDistortionCurve(30);
-                source.connect(hp); hp.connect(lp); lp.connect(dist); dist.connect(dest);
-            }
-            return dest.stream;
-        }
 
         function renderAvatarHtml(avatarData, uid = '') {
             if(avatarData && avatarData.startsWith('data:image')) {
@@ -1365,9 +1299,6 @@
             
             globalMicEnabled = false; 
 
-            if (audioCtxProcessing) { audioCtxProcessing.close(); audioCtxProcessing = null; }
-            currentProcessedStream = null;
-
             document.getElementById('voice-avatars-container').innerHTML = ''; activeSpeakers.clear();
             document.querySelectorAll('.face-cam-bubble').forEach(e => e.remove()); window.toggleLobbyMusic(false);
             Composite.clear(physicsEngine.world); Composite.add(physicsEngine.world, physicsWalls); 
@@ -1428,19 +1359,19 @@
                 btnMic.classList.remove('active'); btnMic.innerHTML = "🎤<span class='hide-on-mobile'> Mikrofon</span>"; btnMic.style.background = "#444";
                 activeVoiceCalls.forEach(call => call.close()); activeVoiceCalls.clear(); pttBtnMobile.style.display = 'none';
                 removeVoiceAvatar('local'); 
-                if (audioCtxProcessing) { audioCtxProcessing.close(); audioCtxProcessing = null; }
-                currentProcessedStream = null;
                 globalMicEnabled = false; 
                 showToast("Mikrofon kapatıldı.", "info");
             } else {
                 try {
-                    // AZ SES VE YANKI İÇİN EN İDEAL AYARLAR (autoGainControl kapalı, channelCount 1)
+                    // DOĞRUDAN DISCORD/WHATSAPP SES KALİTESİ (OPUS / 48kHz / MONO)
                     const constraints = { 
                         audio: { 
                             echoCancellation: true, 
                             noiseSuppression: true, 
-                            autoGainControl: false, // Ses kısılmasını önler
-                            channelCount: 1 // AEC (Yankı iptali) performansını artırır (Mono ses işlemi)
+                            autoGainControl: false, // Sesin aniden kısılmasını önler
+                            channelCount: 1,        // Mono ses, cihazın gürültü/yankı engelleyicisini mükemmelleştirir
+                            sampleRate: 48000,      // Maksimum netlik (Opus yerel desteği)
+                            sampleSize: 16
                         } 
                     };
                     if (selectedMicId !== 'default') constraints.audio.deviceId = { exact: selectedMicId };
@@ -1450,8 +1381,6 @@
                     if(isPttMode) { micStream.getAudioTracks().forEach(t => t.enabled = false); btnMic.innerHTML = "🛑<span class='hide-on-mobile'> Bekliyor</span>"; btnMic.style.background = "#e50914"; pttBtnMobile.style.display = 'flex'; } 
                     else { btnMic.classList.add('active'); btnMic.innerHTML = "🎤<span class='hide-on-mobile'> Açık</span>"; btnMic.style.background = ""; }
                     
-                    currentProcessedStream = applyVoiceEffect(micStream);
-
                     const el = createVoiceAvatarElement('local', myUsername, myAvatar, myUid); 
                     activeSpeakers.set('local', { analyser: null, element: el, isLocal: true });
                     
@@ -1460,10 +1389,10 @@
 
                     const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid };
                     
-                    if (isHost) { viewers.forEach((v, pId) => { activeVoiceCalls.set(pId, peer.call(pId, currentProcessedStream, { metadata: voiceMeta })); }); } 
+                    if (isHost) { viewers.forEach((v, pId) => { activeVoiceCalls.set(pId, peer.call(pId, micStream, { metadata: voiceMeta })); }); } 
                     else { 
-                        activeVoiceCalls.set(hostId, peer.call(hostId, currentProcessedStream, { metadata: voiceMeta })); 
-                        otherPeers.forEach(pId => { activeVoiceCalls.set(pId, peer.call(pId, currentProcessedStream, { metadata: voiceMeta })); });
+                        activeVoiceCalls.set(hostId, peer.call(hostId, micStream, { metadata: voiceMeta })); 
+                        otherPeers.forEach(pId => { activeVoiceCalls.set(pId, peer.call(pId, micStream, { metadata: voiceMeta })); });
                     }
                 } catch (e) { showToast("Mikrofon erişimi reddedildi!", "error"); }
             }
@@ -1485,7 +1414,7 @@
             else if (data.type === 'PEER_LIST') { 
                 const newPeers = data.peers.filter(p => !otherPeers.includes(p)); otherPeers = data.peers; 
                 if (faceCamStream && !isHost) { const camMeta = { type: 'facecam', username: myUsername, uid: myUid }; newPeers.forEach(pId => { myFaceCamCalls.push(peer.call(pId, faceCamStream, { metadata: camMeta })); }); }
-                if (globalMicEnabled && currentProcessedStream && !isHost) { const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid }; newPeers.forEach(pId => { if (!activeVoiceCalls.has(pId)) { activeVoiceCalls.set(pId, peer.call(pId, currentProcessedStream, { metadata: voiceMeta })); } }); }
+                if (globalMicEnabled && micStream && !isHost) { const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid }; newPeers.forEach(pId => { if (!activeVoiceCalls.has(pId)) { activeVoiceCalls.set(pId, peer.call(pId, micStream, { metadata: voiceMeta })); } }); }
             }
             else if (data.type === 'FACECAM_OFF') { document.getElementById('facecam-'+data.peerId)?.remove(); if (isHost) viewers.forEach(v => { if(v.conn.peer !== conn.peer) v.conn.send(data); }); }
             else if (data.type === 'EFFECT') { window.triggerEffect(data.effect); if (isHost && conn) viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); }); }
@@ -1512,7 +1441,7 @@
                     if(syncActive) { const ytUrl = ytPlayer && ytPlayer.getVideoUrl ? ytPlayer.getVideoUrl() : null; const vUrl = syncVideo.src; conn.send({ type: 'SYNC_MEDIA_START', url: ytUrl || vUrl }); }
 
                     if (myStream) peer.call(conn.peer, myStream, { metadata: { type: 'screen' } });
-                    if (globalMicEnabled && currentProcessedStream) { const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid }; activeVoiceCalls.set(conn.peer, peer.call(conn.peer, currentProcessedStream, { metadata: voiceMeta })); }
+                    if (globalMicEnabled && micStream) { const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid }; activeVoiceCalls.set(conn.peer, peer.call(conn.peer, micStream, { metadata: voiceMeta })); }
                     if (faceCamStream) { myFaceCamCalls.push(peer.call(conn.peer, faceCamStream, { metadata: { type: 'facecam', username: myUsername, uid: myUid } })); }
                 });
 
@@ -1577,7 +1506,7 @@
             hostConnection.on('open', () => { statusText.innerText = "Görüntü bekleniyor..."; showToast("Yayıncıya bağlanıldı!", "success"); });
             hostConnection.on('data', handleIncomingData);
             
-            if (globalMicEnabled && currentProcessedStream) { const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid }; activeVoiceCalls.set(targetHostId, peer.call(targetHostId, currentProcessedStream, { metadata: voiceMeta })); }
+            if (globalMicEnabled && micStream) { const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid }; activeVoiceCalls.set(targetHostId, peer.call(targetHostId, micStream, { metadata: voiceMeta })); }
             if (faceCamStream) { const camMeta = { type: 'facecam', username: myUsername, uid: myUid }; myFaceCamCalls.push(peer.call(targetHostId, faceCamStream, { metadata: camMeta })); }
         };
 
