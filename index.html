@@ -213,53 +213,6 @@
         #ptt-btn-mobile { position: fixed; bottom: 80px; right: 20px; z-index: 99999; width: 70px; height: 70px; border-radius: 50%; background: rgba(229, 9, 20, 0.9); color: white; border: 3px solid #fff; font-size: 30px; display: none; justify-content: center; align-items: center; box-shadow: 0 5px 20px rgba(0,0,0,0.5); user-select: none; -webkit-user-select: none; transition: 0.2s; }
         #ptt-btn-mobile.talking { background: #4CAF50; transform: scale(1.1); box-shadow: 0 0 20px #4CAF50; }
 
-        /* ===== AEC / ECHO PREVENTION UI ===== */
-        #echo-warning-banner {
-            display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 999998;
-            background: linear-gradient(135deg, #b71c1c, #d32f2f);
-            color: white; padding: 12px 20px;
-            font-size: 0.9rem; font-weight: 600;
-            align-items: center; justify-content: space-between; gap: 10px;
-            border-top: 2px solid #ff5252;
-            box-shadow: 0 -5px 20px rgba(0,0,0,0.6);
-            animation: slideUpBanner 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        #echo-warning-banner.visible { display: flex; }
-        @keyframes slideUpBanner { from { transform: translateY(100%); opacity:0; } to { transform: translateY(0); opacity:1; } }
-        .echo-banner-actions { display: flex; gap: 8px; flex-shrink: 0; }
-        .echo-banner-btn { padding: 7px 14px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.8rem; transition: 0.2s; }
-        .echo-banner-btn:hover { filter: brightness(1.15); }
-        .echo-banner-btn.primary { background: white; color: #b71c1c; }
-        .echo-banner-btn.secondary { background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.4); }
-
-        /* Hoparlör modu rozeti - header */
-        #speaker-mode-badge {
-            display: none; background: #ff9800; color: #000;
-            padding: 3px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: bold;
-            animation: pulse 2s infinite;
-        }
-        #speaker-mode-badge.visible { display: inline-block; }
-
-        /* AEC Kalkan ikonu mic butonunda */
-        .aec-shield { font-size: 0.75rem; background: rgba(76,175,80,0.3); border-radius: 4px; padding: 1px 4px; margin-left: 3px; }
-
-        /* VAD (Ses aktivasyon) göstergesi */
-        #vad-indicator {
-            display: none; position: fixed; bottom: 165px; right: 20px; z-index: 99997;
-            background: rgba(0,0,0,0.85); color: white; padding: 6px 12px;
-            border-radius: 20px; font-size: 0.75rem; border: 1px solid #333;
-            pointer-events: none; transition: 0.3s;
-        }
-        #vad-indicator.listening { display: block; border-color: #4CAF50; color: #4CAF50; }
-        #vad-indicator.muted-remote { display: block; border-color: #ff9800; color: #ff9800; }
-
-        .setting-group.aec-group { border-color: #ff9800; background: rgba(255, 152, 0, 0.05); }
-        .setting-group.aec-group label { color: #ff9800; }
-        .aec-status-row { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
-        .aec-status-dot { width: 10px; height: 10px; border-radius: 50%; background: #4CAF50; display: inline-block; margin-right: 6px; }
-        .aec-status-dot.warn { background: #ff9800; animation: pulse 1s infinite; }
-        .aec-status-dot.danger { background: #f44336; animation: pulse 0.6s infinite; }
-
         /* 💬 Mobil Sohbet Baloncuğu Butonu */
         #mobile-chat-bubble-btn { position: fixed; top: 70px; right: 15px; width: 50px; height: 50px; background: var(--primary); color: white; border-radius: 50%; display: none; justify-content: center; align-items: center; font-size: 1.5rem; z-index: 10001; box-shadow: 0 5px 20px rgba(0,0,0,0.6); border: 2px solid #fff; cursor: pointer; transition: opacity 0.5s ease, transform 0.2s; }
         #mobile-chat-bubble-btn:hover { transform: scale(1.1); }
@@ -468,30 +421,6 @@
                 </label>
             </div>
 
-            <!-- AEC / ECHO ÖNLEME AYARLARI -->
-            <div class="setting-group aec-group">
-                <label>🛡️ Yankı Önleme (AEC)</label>
-                <div class="aec-status-row">
-                    <span><span class="aec-status-dot" id="aec-status-dot"></span><span id="aec-status-text">Durum kontrol ediliyor...</span></span>
-                </div>
-                <div style="margin-top:12px;">
-                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; color:#fff; text-transform:none; margin-bottom:8px;">
-                        <input type="checkbox" id="speakerphone-mode-toggle" style="width:auto; transform: scale(1.2);">
-                        📢 Hoparlör Modu (Kulaklık takmadan kullanıyorum)
-                    </label>
-                    <p style="color:#aaa; font-size:0.78rem; margin:0 0 8px 0; line-height:1.4;">
-                        Aktif edilirse: mikrofon sadece siz konuştuğunuzda açılır, arkadaşlar konuşurken otomatik kapanır. En sağlam yankı önleme yöntemi.
-                    </p>
-                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; color:#fff; text-transform:none;">
-                        <input type="checkbox" id="vad-ducking-toggle" style="width:auto; transform: scale(1.2);" checked>
-                        🔇 Akıllı Mikrofon Kısma (Birisi konuşurken mikrofonu otomatik kıs)
-                    </label>
-                    <p style="color:#aaa; font-size:0.78rem; margin:4px 0 0 0; line-height:1.4;">
-                        Hoparlör modundan daha yumuşak alternatif. Tam kapatmak yerine sesi yüksekken kısaltır.
-                    </p>
-                </div>
-            </div>
-
             <div class="setting-group mixer">
                 <label>🔊 Ses Karıştırıcı</label>
                 <span style="font-size:0.8rem; color:#888;">Ana Film Sesi</span>
@@ -511,16 +440,6 @@
     </div>
 
     <div id="ptt-btn-mobile" title="Konuşmak için basılı tut">🎙️</div>
-
-    <!-- AEC / ECHO PREVENTION ELEMENTS -->
-    <div id="echo-warning-banner">
-        <span>🔊 <strong>Kulaklık takılı değil!</strong> Hoparlör sesini mikrofon alıp arkadaşlarına gönderebilir (yankı). Bas-Konuş moduna geçilmesi önerilir.</span>
-        <div class="echo-banner-actions">
-            <button class="echo-banner-btn primary" onclick="window.activateSpeakerphoneMode()">🔴 Bas-Konuş Moduna Geç</button>
-            <button class="echo-banner-btn secondary" onclick="window.dismissEchoBanner()">Yoksay</button>
-        </div>
-    </div>
-    <div id="vad-indicator">🎤 Dinleniyor</div>
 
     <div id="login-screen" class="screen active">
         <div class="card" id="auth-card">
@@ -570,7 +489,7 @@
             <div class="video-section">
                 <div class="header">
                     <div class="header-left">
-                        <h2>🍿 Oda: <span id="room-display">...</span> <span id="speaker-mode-badge">🔊 Hoparlör Modu</span></h2>
+                        <h2>🍿 Oda: <span id="room-display">...</span></h2>
                         <span id="role-display" style="font-size: 0.8rem; color: #aaa;">...</span>
                     </div>
                     <div class="header-controls" id="main-header-controls">
@@ -1283,7 +1202,7 @@
 
         const settingsModal = document.getElementById('settings-modal');
         let selectedMicId = 'default', selectedSpeakerId = 'default'; let isPttMode = false, isWhisperMode = false, isTalking = false;
-        document.getElementById('btn-open-login-settings').addEventListener('click', () => settingsModal.classList.add('active')); document.getElementById('btn-close-settings').addEventListener('click', () => settingsModal.classList.remove('active'));
+        document.getElementById('btn-settings').addEventListener('click', () => settingsModal.classList.add('active')); document.getElementById('btn-open-login-settings').addEventListener('click', () => settingsModal.classList.add('active')); document.getElementById('btn-close-settings').addEventListener('click', () => settingsModal.classList.remove('active'));
 
         document.getElementById('voice-mode-select').addEventListener('change', (e) => { isPttMode = (e.target.value === 'ptt'); if(isPttMode && micStream) { micStream.getAudioTracks().forEach(t => t.enabled = false); pttBtnMobile.style.display = 'flex'; btnMic.innerHTML = "🛑 Bas-Konuş Bekliyor"; btnMic.style.background = "#e50914"; } else { if(micStream) micStream.getAudioTracks().forEach(t => t.enabled = true); pttBtnMobile.style.display = 'none'; if(micStream) { btnMic.innerHTML = "🎤 Mikrofon Açık"; btnMic.style.background = "#4CAF50"; } } });
         document.getElementById('whisper-mode-toggle').addEventListener('change', (e) => isWhisperMode = e.target.checked);
@@ -1304,190 +1223,9 @@
             }); 
         });
 
-        // =========================================================
-        // 🛡️ AEC / YANKIÖNLEME SİSTEMİ — TAM ENTEGRASYON
-        // =========================================================
-        let isSpeakerphoneMode = false;   // Kullanıcı hoparlör modunu açtı mı
-        let isVadDuckingEnabled = true;   // Akıllı mikrofon kısma aktif mi
-        let echoBannerDismissed = false;  // Banner zaten kapatıldı mı
-        let vadDuckingActive = false;     // Şu an kısma uygulanıyor mu
-        let remoteActivityTimer = null;   // Uzak tarafta ses bitince zamanlayıcı
-        const VAD_THRESHOLD = 12;         // Ses aktivasyon eşiği (0-255)
-        const VAD_DUCK_LEVEL = 0.08;      // Kısma sırasında mikrofon gain seviyesi
-        let micGainNode = null;           // Web Audio API gain node
-        let processedMicStream = null;    // Gain uygulanmış mikrofon stream'i
-
-        // --- Kulaklık tespit fonksiyonu ---
-        async function detectHeadphones() {
-            try {
-                await navigator.mediaDevices.getUserMedia({ audio: true });
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const audioOutputs = devices.filter(d => d.kind === 'audiooutput');
-                // Kulaklık/headset kelimesi içeren cihaz ara
-                const headphonePatterns = /headphone|headset|earphone|kulaklık|earbuds|airpod|buds|wired|bluetooth.*audio/i;
-                const hasExternalHeadphone = audioOutputs.some(d => headphonePatterns.test(d.label));
-                const hasOnlySpeaker = audioOutputs.length <= 1 && audioOutputs.every(d => 
-                    /speaker|internal|built.?in|dahili|hoparlör/i.test(d.label) || d.label === '' || d.deviceId === 'default'
-                );
-                return { hasHeadphones: hasExternalHeadphone, hasOnlySpeaker, outputs: audioOutputs };
-            } catch(e) {
-                return { hasHeadphones: false, hasOnlySpeaker: true, outputs: [] };
-            }
-        }
-
-        // --- AEC Durum Panelini Güncelle ---
-        async function updateAecStatus() {
-            const dot = document.getElementById('aec-status-dot');
-            const txt = document.getElementById('aec-status-text');
-            if (!dot || !txt) return;
-
-            if (isSpeakerphoneMode) {
-                dot.className = 'aec-status-dot warn';
-                txt.textContent = '🔊 Hoparlör Modu — Mikrofon otomatik kontrol ediliyor';
-                return;
-            }
-            if (!micStream) {
-                dot.className = 'aec-status-dot';
-                dot.style.background = '#555';
-                txt.textContent = 'Mikrofon kapalı — Sorun yok';
-                return;
-            }
-            const result = await detectHeadphones();
-            if (result.hasHeadphones) {
-                dot.className = 'aec-status-dot';
-                txt.textContent = '✅ Kulaklık algılandı — AEC tam çalışıyor';
-            } else if (result.hasOnlySpeaker) {
-                dot.className = 'aec-status-dot danger';
-                txt.textContent = '⚠️ Kulaklık yok — Yankı riski var!';
-            } else {
-                dot.className = 'aec-status-dot warn';
-                txt.textContent = '❓ Cihaz algılanamadı — Hoparlör Modu önerilir';
-            }
-        }
-
-        // --- Mikrofon için Gain Node oluştur (VAD Ducking için) ---
-        function buildProcessedMicStream(rawStream) {
-            if (!rawStream) return rawStream;
-            try {
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-                const source = audioCtx.createMediaStreamSource(rawStream);
-                micGainNode = audioCtx.createGain();
-                micGainNode.gain.value = 1.0;
-                const destination = audioCtx.createMediaStreamDestination();
-                source.connect(micGainNode);
-                micGainNode.connect(destination);
-                return destination.stream;
-            } catch(e) {
-                console.warn('Gain node oluşturulamadı, ham stream kullanılıyor:', e);
-                return rawStream;
-            }
-        }
-
-        // --- VAD Ducking: Uzaktaki konuşmacı aktifken mikrofonu kıs ---
-        function updateVadDucking() {
-            if (!isVadDuckingEnabled || isSpeakerphoneMode || isPttMode || !micGainNode || !micStream) return;
-
-            let maxRemoteLevel = 0;
-            activeSpeakers.forEach((speaker, peerId) => {
-                if (peerId === 'local' || !speaker.analyser) return;
-                const data = new Uint8Array(speaker.analyser.frequencyBinCount);
-                speaker.analyser.getByteFrequencyData(data);
-                const avg = data.reduce((a, b) => a + b, 0) / data.length;
-                if (avg > maxRemoteLevel) maxRemoteLevel = avg;
-            });
-
-            const shouldDuck = maxRemoteLevel > VAD_THRESHOLD;
-
-            if (shouldDuck && !vadDuckingActive) {
-                vadDuckingActive = true;
-                micGainNode.gain.setTargetAtTime(VAD_DUCK_LEVEL, audioCtx.currentTime, 0.05);
-                const vadEl = document.getElementById('vad-indicator');
-                if (vadEl) { vadEl.textContent = '🔇 Kısılıyor (Biri konuşuyor)'; vadEl.className = 'muted-remote'; }
-                clearTimeout(remoteActivityTimer);
-            } else if (!shouldDuck && vadDuckingActive) {
-                clearTimeout(remoteActivityTimer);
-                remoteActivityTimer = setTimeout(() => {
-                    vadDuckingActive = false;
-                    if (micGainNode) micGainNode.gain.setTargetAtTime(1.0, audioCtx.currentTime, 0.1);
-                    const vadEl = document.getElementById('vad-indicator');
-                    if (vadEl) { vadEl.textContent = '🎤 Dinleniyor'; vadEl.className = 'listening'; }
-                }, 400); // 400ms sessizlik sonrası aç
-            }
-        }
-
-        // --- Hoparlör Modunu Etkinleştir ---
-        window.activateSpeakerphoneMode = function() {
-            isSpeakerphoneMode = true;
-            document.getElementById('speakerphone-mode-toggle').checked = true;
-            // PTT moduna zorla
-            isPttMode = true;
-            document.getElementById('voice-mode-select').value = 'ptt';
-            if (micStream) micStream.getAudioTracks().forEach(t => t.enabled = false);
-            pttBtnMobile.style.display = 'flex';
-            btnMic.innerHTML = "🛑<span class='hide-on-mobile'> Bas-Konuş</span>";
-            btnMic.style.background = "#e50914";
-            // Badge ve banner
-            document.getElementById('speaker-mode-badge').classList.add('visible');
-            window.dismissEchoBanner();
-            showToast("🔊 Hoparlör modu aktif! SPACE veya butona basılı tutarak konuşun.", "success");
-            updateAecStatus();
-        };
-
-        // --- Hoparlör Modunu Kapat ---
-        window.deactivateSpeakerphoneMode = function() {
-            isSpeakerphoneMode = false;
-            isPttMode = false;
-            document.getElementById('voice-mode-select').value = 'continuous';
-            if (micStream) micStream.getAudioTracks().forEach(t => t.enabled = true);
-            pttBtnMobile.style.display = 'none';
-            if (micStream) { btnMic.innerHTML = "🎤<span class='hide-on-mobile'> Açık</span>"; btnMic.style.background = ""; }
-            document.getElementById('speaker-mode-badge').classList.remove('visible');
-            showToast("Hoparlör modu kapatıldı.", "info");
-            updateAecStatus();
-        };
-
-        // --- Banner'ı kapat ---
-        window.dismissEchoBanner = function() {
-            echoBannerDismissed = true;
-            document.getElementById('echo-warning-banner').classList.remove('visible');
-        };
-
-        // --- Mikrofon açıldığında kulaklık kontrolü yap ---
-        async function checkAndWarnIfSpeakerphone() {
-            if (echoBannerDismissed || isSpeakerphoneMode || isPttMode) return;
-            const result = await detectHeadphones();
-            if (!result.hasHeadphones) {
-                // 1 saniye bekle, kullanıcı yeni açtı göster
-                setTimeout(() => {
-                    document.getElementById('echo-warning-banner').classList.add('visible');
-                    // 15 saniye sonra otomatik kapat
-                    setTimeout(() => window.dismissEchoBanner(), 15000);
-                }, 1000);
-            }
-        }
-
-        // Settings toggle'ı için dinleyici
-        document.getElementById('speakerphone-mode-toggle').addEventListener('change', (e) => {
-            if (e.target.checked) window.activateSpeakerphoneMode();
-            else window.deactivateSpeakerphoneMode();
-        });
-
-        document.getElementById('vad-ducking-toggle').addEventListener('change', (e) => {
-            isVadDuckingEnabled = e.target.checked;
-            if (!isVadDuckingEnabled && micGainNode) {
-                micGainNode.gain.setTargetAtTime(1.0, audioCtx.currentTime, 0.05);
-                vadDuckingActive = false;
-            }
-            showToast(isVadDuckingEnabled ? "Akıllı mikrofon kısma aktif." : "Akıllı mikrofon kısma kapalı.", "info");
-        });
-
-        // Settings açıldığında durumu güncelle
-        document.getElementById('btn-settings').addEventListener('click', () => { settingsModal.classList.add('active'); updateAecStatus(); });
-
-        // =========================================================
-
         let isSpeakerMuted = false;
-        btnSpeaker.addEventListener('click', () => {            isSpeakerMuted = !isSpeakerMuted;
+        btnSpeaker.addEventListener('click', () => {
+            isSpeakerMuted = !isSpeakerMuted;
             if (isSpeakerMuted) { btnSpeaker.classList.add('active'); btnSpeaker.innerHTML = "🔇 Sessiz"; activeAudioElements.forEach(a => a.muted = true); showToast("Sohbet sesleri kapatıldı.", "info"); } 
             else { 
                 btnSpeaker.classList.remove('active'); btnSpeaker.innerHTML = "🔊 Sohbet"; 
@@ -1570,8 +1308,6 @@
                     if (isTalking) speaker.element.classList.add('speaking'); else speaker.element.classList.remove('speaking');
                 }
             });
-            // 🛡️ VAD Ducking güncelle
-            updateVadDucking();
             requestAnimationFrame(checkAudioLevels);
         }
         requestAnimationFrame(checkAudioLevels);
@@ -1585,11 +1321,6 @@
             }
             if (myStream) myStream.getTracks().forEach(t => t.stop()); if (micStream) micStream.getTracks().forEach(t => t.stop()); if(faceCamStream) faceCamStream.getTracks().forEach(t=>t.stop());
             if (peer) peer.destroy(); viewers.clear(); activeVoiceCalls.clear();
-            // 🛡️ AEC temizlik
-            micGainNode = null; processedMicStream = null; vadDuckingActive = false;
-            echoBannerDismissed = false;
-            window.dismissEchoBanner();
-            const vadEl = document.getElementById('vad-indicator'); if (vadEl) vadEl.className = '';
             
             // Tüm zombi etiketleri temizle
             activeAudioElements.forEach(a => {
@@ -1616,7 +1347,7 @@
         function handleIncomingVoice(call) {
             call.answer();
             call.on('stream', audioStream => {
-                // ZOMBİ SES ETİKETİ TEMİZLİĞİ
+                // ZOMBİ SES ETİKETİ TEMİZLİĞİ (Ramden ve Ekrandan Siler - Sonsuz Yankıyı Engeller)
                 const existingAudio = document.querySelector(`audio[data-peer-id="${call.peer}"]`);
                 if (existingAudio) { 
                     existingAudio.pause();
@@ -1631,60 +1362,32 @@
                 const uName = call.metadata?.username || "Konuk"; const uAvatar = call.metadata?.avatar || "👤"; const uUid = call.metadata?.uid || "anon";
                 let analyser = null;
 
-                // Desktop: Analyser oluştur (hem görsel seviye hem VAD ducking için)
                 if (!isMobile) {
                     const source = audioCtx.createMediaStreamSource(audioStream);
-                    analyser = audioCtx.createAnalyser(); 
-                    analyser.fftSize = 256; 
-                    analyser.smoothingTimeConstant = 0.7;
-                    source.connect(analyser); 
+                    analyser = audioCtx.createAnalyser(); analyser.fftSize = 256; source.connect(analyser); 
                 }
 
                 const el = createVoiceAvatarElement(call.peer, uName, uAvatar, uUid); 
                 activeSpeakers.set(call.peer, { analyser: analyser, element: el, isLocal: false });
 
-                const audio = document.createElement('audio'); 
-                audio.srcObject = audioStream; 
-                audio.autoplay = true; 
-                audio.playsInline = true; 
-                audio.muted = isSpeakerMuted; 
-                audio.dataset.peerId = call.peer;
+                const audio = document.createElement('audio'); audio.srcObject = audioStream; audio.autoplay = true; audio.playsInline = true; audio.muted = isSpeakerMuted; audio.dataset.peerId = call.peer;
                 
-                const isWhisper = call.metadata?.whisper; 
-                audio.dataset.whisper = isWhisper ? 'true' : 'false';
-                
-                // Ses çıkış cihazını ayarla
-                if(typeof audio.setSinkId !== 'undefined' && selectedSpeakerId !== 'default') {
-                    audio.setSinkId(selectedSpeakerId).catch(()=>{});
-                }
+                const isWhisper = call.metadata?.whisper; audio.dataset.whisper = isWhisper ? 'true' : 'false';
+                if(typeof audio.setSinkId !== 'undefined' && selectedSpeakerId !== 'default') audio.setSinkId(selectedSpeakerId).catch(()=>{});
                 
                 if (isMobile) {
-                    audio.volume = 1.0; // MOBİLDE SES KISILIRSA DONANIM AEC BOZULUR. KESİNLİKLE 1.0 KALMALI.
+                    audio.volume = 1.0; // MOBİLDE SES KISILIRSA AEC BOZULUR. KESİNLİKLE 1.0 KALMALI.
                 } else {
-                    const baseVol = document.getElementById('mix-chat-vol').value / 100; 
-                    const pVol = peerVolumes[call.peer] !== undefined ? peerVolumes[call.peer] : 1;
+                    const baseVol = document.getElementById('mix-chat-vol').value / 100; const pVol = peerVolumes[call.peer] !== undefined ? peerVolumes[call.peer] : 1;
                     audio.volume = (isWhisper ? baseVol * 0.3 : baseVol) * pVol;
                 }
                 
-                document.body.appendChild(audio); 
-                activeAudioElements.push(audio);
+                document.body.appendChild(audio); activeAudioElements.push(audio);
                 audio.play().catch(e => console.warn("Ses otomatik oynatılamadı.", e));
-
-                // 🛡️ Hoparlör modu aktifse ve bu ilk peer geliyorsa VAD göstergesini aç
-                if (isSpeakerphoneMode || isVadDuckingEnabled) {
-                    const vadEl = document.getElementById('vad-indicator');
-                    if (vadEl && micStream) { vadEl.textContent = '🎤 Dinleniyor'; vadEl.className = 'listening'; }
-                }
 
                 call.on('close', () => { 
                     audio.pause(); audio.removeAttribute('src'); audio.srcObject = null; audio.remove(); 
-                    removeVoiceAvatar(call.peer); 
-                    activeAudioElements = activeAudioElements.filter(a => a !== audio);
-                    // Son peer ayrıldıysa VAD göstergesini kapat
-                    if (activeSpeakers.size <= 1) {
-                        const vadEl = document.getElementById('vad-indicator');
-                        if (vadEl) vadEl.className = '';
-                    }
+                    removeVoiceAvatar(call.peer); activeAudioElements = activeAudioElements.filter(a => a !== audio); 
                 });
             });
         }
@@ -1692,14 +1395,10 @@
         btnMic.addEventListener('click', async () => {
             if (micStream) {
                 micStream.getTracks().forEach(t => t.stop()); micStream = null;
-                processedMicStream = null; micGainNode = null;
                 btnMic.classList.remove('active'); btnMic.innerHTML = "🎤<span class='hide-on-mobile'> Mikrofon</span>"; btnMic.style.background = "#444";
                 activeVoiceCalls.forEach(call => call.close()); activeVoiceCalls.clear(); pttBtnMobile.style.display = 'none';
                 removeVoiceAvatar('local'); 
                 globalMicEnabled = false; 
-                // VAD göstergesini kapat
-                const vadEl = document.getElementById('vad-indicator');
-                if (vadEl) vadEl.className = '';
                 showToast("Mikrofon kapatıldı.", "info");
             } else {
                 try {
@@ -1730,9 +1429,6 @@
                     if (selectedMicId !== 'default') constraints.audio.deviceId = { exact: selectedMicId };
 
                     micStream = await navigator.mediaDevices.getUserMedia(constraints);
-
-                    // 🛡️ Gain Node ile işlenmiş stream oluştur (VAD Ducking için)
-                    processedMicStream = buildProcessedMicStream(micStream);
                     
                     if(isPttMode) { micStream.getAudioTracks().forEach(t => t.enabled = false); btnMic.innerHTML = "🛑<span class='hide-on-mobile'> Bekliyor</span>"; btnMic.style.background = "#e50914"; pttBtnMobile.style.display = 'flex'; } 
                     else { btnMic.classList.add('active'); btnMic.innerHTML = "🎤<span class='hide-on-mobile'> Açık</span>"; btnMic.style.background = ""; }
@@ -1743,23 +1439,12 @@
                     showToast("Sese bağlanıldı!", "success");
                     globalMicEnabled = true; 
 
-                    // 🛡️ Kulaklık kontrolü yap ve banner göster
-                    checkAndWarnIfSpeakerphone();
-
-                    // VAD göstergesini aç
-                    if (isVadDuckingEnabled && !isSpeakerphoneMode) {
-                        const vadEl = document.getElementById('vad-indicator');
-                        if (vadEl && activeSpeakers.size > 1) { vadEl.textContent = '🎤 Dinleniyor'; vadEl.className = 'listening'; }
-                    }
-
-                    // Peer'lara işlenmiş stream'i gönder (gain node üzerinden)
-                    const streamToSend = processedMicStream || micStream;
                     const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid };
                     
-                    if (isHost) { viewers.forEach((v, pId) => { activeVoiceCalls.set(pId, peer.call(pId, streamToSend, { metadata: voiceMeta })); }); } 
+                    if (isHost) { viewers.forEach((v, pId) => { activeVoiceCalls.set(pId, peer.call(pId, micStream, { metadata: voiceMeta })); }); } 
                     else { 
-                        activeVoiceCalls.set(hostId, peer.call(hostId, streamToSend, { metadata: voiceMeta })); 
-                        otherPeers.forEach(pId => { activeVoiceCalls.set(pId, peer.call(pId, streamToSend, { metadata: voiceMeta })); });
+                        activeVoiceCalls.set(hostId, peer.call(hostId, micStream, { metadata: voiceMeta })); 
+                        otherPeers.forEach(pId => { activeVoiceCalls.set(pId, peer.call(pId, micStream, { metadata: voiceMeta })); });
                     }
                 } catch (e) { showToast("Mikrofon erişimi reddedildi!", "error"); }
             }
@@ -1781,7 +1466,7 @@
             else if (data.type === 'PEER_LIST') { 
                 const newPeers = data.peers.filter(p => !otherPeers.includes(p)); otherPeers = data.peers; 
                 if (faceCamStream && !isHost) { const camMeta = { type: 'facecam', username: myUsername, uid: myUid }; newPeers.forEach(pId => { myFaceCamCalls.push(peer.call(pId, faceCamStream, { metadata: camMeta })); }); }
-                if (globalMicEnabled && micStream && !isHost) { const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid }; const streamToSend = processedMicStream || micStream; newPeers.forEach(pId => { if (!activeVoiceCalls.has(pId)) { activeVoiceCalls.set(pId, peer.call(pId, streamToSend, { metadata: voiceMeta })); } }); }
+                if (globalMicEnabled && micStream && !isHost) { const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid }; newPeers.forEach(pId => { if (!activeVoiceCalls.has(pId)) { activeVoiceCalls.set(pId, peer.call(pId, micStream, { metadata: voiceMeta })); } }); }
             }
             else if (data.type === 'FACECAM_OFF') { document.getElementById('facecam-'+data.peerId)?.remove(); if (isHost) viewers.forEach(v => { if(v.conn.peer !== conn.peer) v.conn.send(data); }); }
             else if (data.type === 'EFFECT') { window.triggerEffect(data.effect); if (isHost && conn) viewers.forEach(v => { if (v.conn.peer !== conn.peer) v.conn.send(data); }); }
@@ -1808,7 +1493,7 @@
                     if(syncActive) { const ytUrl = ytPlayer && ytPlayer.getVideoUrl ? ytPlayer.getVideoUrl() : null; const vUrl = syncVideo.src; conn.send({ type: 'SYNC_MEDIA_START', url: ytUrl || vUrl }); }
 
                     if (myStream) peer.call(conn.peer, myStream, { metadata: { type: 'screen' } });
-                    if (globalMicEnabled && micStream) { const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid }; const streamToSend = processedMicStream || micStream; activeVoiceCalls.set(conn.peer, peer.call(conn.peer, streamToSend, { metadata: voiceMeta })); }
+                    if (globalMicEnabled && micStream) { const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid }; activeVoiceCalls.set(conn.peer, peer.call(conn.peer, micStream, { metadata: voiceMeta })); }
                     if (faceCamStream) { myFaceCamCalls.push(peer.call(conn.peer, faceCamStream, { metadata: { type: 'facecam', username: myUsername, uid: myUid } })); }
                 });
 
@@ -1873,7 +1558,7 @@
             hostConnection.on('open', () => { statusText.innerText = "Görüntü bekleniyor..."; showToast("Yayıncıya bağlanıldı!", "success"); });
             hostConnection.on('data', handleIncomingData);
             
-            if (globalMicEnabled && micStream) { const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid }; const streamToSend = processedMicStream || micStream; activeVoiceCalls.set(targetHostId, peer.call(targetHostId, streamToSend, { metadata: voiceMeta })); }
+            if (globalMicEnabled && micStream) { const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid }; activeVoiceCalls.set(targetHostId, peer.call(targetHostId, micStream, { metadata: voiceMeta })); }
             if (faceCamStream) { const camMeta = { type: 'facecam', username: myUsername, uid: myUid }; myFaceCamCalls.push(peer.call(targetHostId, faceCamStream, { metadata: camMeta })); }
         };
 
