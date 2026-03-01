@@ -212,7 +212,6 @@
 
         #ptt-btn-mobile { position: fixed; bottom: 80px; right: 20px; z-index: 99999; width: 70px; height: 70px; border-radius: 50%; background: rgba(229, 9, 20, 0.9); color: white; border: 3px solid #fff; font-size: 30px; display: none; justify-content: center; align-items: center; box-shadow: 0 5px 20px rgba(0,0,0,0.5); user-select: none; -webkit-user-select: none; transition: 0.2s; }
         #ptt-btn-mobile.talking { background: #4CAF50; transform: scale(1.1); box-shadow: 0 0 20px #4CAF50; }
-        @keyframes slideUpBanner { from { transform:translateY(100%); opacity:0; } to { transform:translateY(0); opacity:1; } }
 
         /* 💬 Mobil Sohbet Baloncuğu Butonu */
         #mobile-chat-bubble-btn { position: fixed; top: 70px; right: 15px; width: 50px; height: 50px; background: var(--primary); color: white; border-radius: 50%; display: none; justify-content: center; align-items: center; font-size: 1.5rem; z-index: 10001; box-shadow: 0 5px 20px rgba(0,0,0,0.6); border: 2px solid #fff; cursor: pointer; transition: opacity 0.5s ease, transform 0.2s; }
@@ -420,13 +419,6 @@
                     <input type="checkbox" id="whisper-mode-toggle" style="width:auto; transform: scale(1.2);">
                     Fısıltı Modu (Sesimi kısık ilet)
                 </label>
-                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:10px; color:#fff; text-transform:none;">
-                    <input type="checkbox" id="vad-gating-toggle" checked style="width:auto; transform: scale(1.2);">
-                    🛡️ Yankı Önleme — VAD Gating <span style="font-size:.75rem;color:#4CAF50;margin-left:4px;">(ÖNERİLİR)</span>
-                </label>
-                <p style="color:#888;font-size:.78rem;margin:5px 0 0 0;line-height:1.4;">
-                    Karşı taraftan ses gelirken mikrofonunuzu otomatik kapatır. Kulaklık takmadan kullananlarda yankıyı %95 oranında önler.
-                </p>
             </div>
 
             <div class="setting-group mixer">
@@ -1214,16 +1206,6 @@
 
         document.getElementById('voice-mode-select').addEventListener('change', (e) => { isPttMode = (e.target.value === 'ptt'); if(isPttMode && micStream) { micStream.getAudioTracks().forEach(t => t.enabled = false); pttBtnMobile.style.display = 'flex'; btnMic.innerHTML = "🛑 Bas-Konuş Bekliyor"; btnMic.style.background = "#e50914"; } else { if(micStream) micStream.getAudioTracks().forEach(t => t.enabled = true); pttBtnMobile.style.display = 'none'; if(micStream) { btnMic.innerHTML = "🎤 Mikrofon Açık"; btnMic.style.background = "#4CAF50"; } } });
         document.getElementById('whisper-mode-toggle').addEventListener('change', (e) => isWhisperMode = e.target.checked);
-        document.getElementById('vad-gating-toggle').addEventListener('change', (e) => {
-            vadGatingEnabled = e.target.checked;
-            if (!vadGatingEnabled) {
-                // Kapatılırsa micStream track'lerini tekrar aç
-                vadGateOpen = true;
-                clearTimeout(vadGateTimer);
-                if (micStream && !isPttMode) micStream.getAudioTracks().forEach(t => t.enabled = true);
-            }
-            showToast(vadGatingEnabled ? '🛡️ VAD Gating aktif' : 'VAD Gating kapatıldı', 'info');
-        });
         
         document.getElementById('mix-video-vol').addEventListener('input', (e) => { 
             if(isMobile) return; // AEC koruması için mobilde js ile ses değişimi iptal
@@ -1326,8 +1308,6 @@
                     if (isTalking) speaker.element.classList.add('speaking'); else speaker.element.classList.remove('speaking');
                 }
             });
-            // VAD-Gating: uzak ses varken mikrofonu kapat
-            applyVadGating();
             requestAnimationFrame(checkAudioLevels);
         }
         requestAnimationFrame(checkAudioLevels);
@@ -1364,172 +1344,50 @@
         }
         document.getElementById('leave-btn').addEventListener('click', () => { if (confirm("Odadan ayrılmak istediğinize emin misiniz?")) showWrappedAndDisconnect(); });
 
-        // ─────────────────────────────────────────────────────────────
-        // 🔊 YENİDEN YAZILAN SES MOTORU  –  v3 (Yankı Temiz)
-        //
-        // TEMEL PRENSİP:
-        //   • Ses YALNIZCA <audio> elementi üzerinden çalar.
-        //   • Web Audio API sadece SEVİYE ÖLÇÜMÜ (analyser) için kullanılır,
-        //     ASLA audioCtx.destination'a bağlanmaz → çift çalma/yankı yok.
-        //   • Hem mobil hem desktop için analyser oluşturulur (VAD gerekli).
-        //   • Kulaklık takılı değilse mikrofon açılışında uyarı gösterilir ve
-        //     PTT moduna geçmesi teklif edilir.
-        //   • VAD-Gating: Karşı taraftan ses gelirken micStream track'i
-        //     disable edilir → hoparlör sesinin geri dönmesi fiziksel olarak engellenir.
-        // ─────────────────────────────────────────────────────────────
-
-        /* --- VAD-Gating state --- */
-        let vadGatingEnabled = true;          // Kullanıcı kapatabilir
-        let vadGateOpen = true;               // true = mic açık, false = mic kapalı (gating)
-        let vadGateTimer = null;
-        const VAD_GATE_THRESHOLD  = 14;       // Uzak ses bu seviyenin üstündeyse mic kapat
-        const VAD_GATE_CLOSE_MS   = 80;       // Ses başladığında bu ms sonra kapat
-        const VAD_GATE_OPEN_MS    = 350;      // Ses bitince bu ms sonra tekrar aç
-
-        /* --- Kulaklık tespiti --- */
-        let headphoneCheckDone = false;
-        async function detectHeadphones() {
-            try {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const outputs  = devices.filter(d => d.kind === 'audiooutput');
-                const hasHP    = outputs.some(d =>
-                    /headphone|headset|earphone|kulaklık|earbuds|airpod|buds|bluetooth/i.test(d.label)
-                );
-                return hasHP;
-            } catch { return false; }
-        }
-
-        /* --- Uyarı banner --- */
-        function showEchoBanner() {
-            let banner = document.getElementById('echo-warn-banner');
-            if (banner) return; // zaten var
-            banner = document.createElement('div');
-            banner.id = 'echo-warn-banner';
-            banner.style.cssText = [
-                'position:fixed','bottom:0','left:0','right:0','z-index:9999999',
-                'background:linear-gradient(135deg,#b71c1c,#d32f2f)',
-                'color:#fff','padding:12px 16px','display:flex','align-items:center',
-                'justify-content:space-between','gap:10px','font-size:.88rem',
-                'font-weight:600','border-top:2px solid #ff5252',
-                'box-shadow:0 -4px 18px rgba(0,0,0,.6)',
-                'animation:slideUpBanner .35s ease'
-            ].join(';');
-            banner.innerHTML = `
-                <span>🔊 <b>Kulaklık bulunamadı!</b> Hoparlör sesi mikrofona geri dönebilir (yankı/gürültü).
-                Bas-Konuş moduna geçmen önerilir.</span>
-                <div style="display:flex;gap:8px;flex-shrink:0">
-                    <button onclick="window.forcePTTMode()" style="padding:7px 13px;background:#fff;color:#b71c1c;border:none;border-radius:6px;cursor:pointer;font-weight:bold;font-size:.82rem">🔴 Bas-Konuş'a Geç</button>
-                    <button onclick="this.closest('#echo-warn-banner').remove()" style="padding:7px 13px;background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:6px;cursor:pointer;font-size:.82rem">Yoksay</button>
-                </div>`;
-            document.body.appendChild(banner);
-            setTimeout(() => banner?.remove(), 20000);
-        }
-
-        window.forcePTTMode = function() {
-            isPttMode = true;
-            document.getElementById('voice-mode-select').value = 'ptt';
-            if (micStream) micStream.getAudioTracks().forEach(t => t.enabled = false);
-            pttBtnMobile.style.display = 'flex';
-            btnMic.innerHTML = "🛑<span class='hide-on-mobile'> Bas-Konuş</span>";
-            btnMic.style.background = '#e50914';
-            document.getElementById('echo-warn-banner')?.remove();
-            showToast('🔊 Bas-Konuş modu aktif! SPACE veya butona basılı tut.', 'success');
-        };
-
-        /* --- VAD-Gating loop (checkAudioLevels içinden çağrılır) --- */
-        function applyVadGating() {
-            if (!vadGatingEnabled || isPttMode || !micStream || !globalMicEnabled) return;
-
-            let maxLevel = 0;
-            activeSpeakers.forEach((sp, id) => {
-                if (id === 'local' || !sp.analyser) return;
-                const buf = new Uint8Array(sp.analyser.frequencyBinCount);
-                sp.analyser.getByteFrequencyData(buf);
-                const avg = buf.reduce((s, v) => s + v, 0) / buf.length;
-                if (avg > maxLevel) maxLevel = avg;
-            });
-
-            const remoteActive = maxLevel > VAD_GATE_THRESHOLD;
-
-            if (remoteActive && vadGateOpen) {
-                // Uzak ses var → mikrofonu kapat
-                clearTimeout(vadGateTimer);
-                vadGateTimer = setTimeout(() => {
-                    vadGateOpen = false;
-                    micStream?.getAudioTracks().forEach(t => t.enabled = false);
-                }, VAD_GATE_CLOSE_MS);
-            } else if (!remoteActive && !vadGateOpen) {
-                // Uzak ses bitti → mikrofonu aç
-                clearTimeout(vadGateTimer);
-                vadGateTimer = setTimeout(() => {
-                    vadGateOpen = true;
-                    if (!isPttMode) micStream?.getAudioTracks().forEach(t => t.enabled = true);
-                }, VAD_GATE_OPEN_MS);
-            }
-        }
-
-        /* --- Gelen ses akışını işle --- */
         function handleIncomingVoice(call) {
             call.answer();
             call.on('stream', audioStream => {
-
-                // 1) Zombi temizliği — aynı peer'dan önceki stream varsa yok et
-                const old = document.querySelector(`audio[data-peer-id="${call.peer}"]`);
-                if (old) { old.pause(); old.srcObject = null; old.remove(); }
+                // ZOMBİ SES ETİKETİ TEMİZLİĞİ (Ramden ve Ekrandan Siler - Sonsuz Yankıyı Engeller)
+                const existingAudio = document.querySelector(`audio[data-peer-id="${call.peer}"]`);
+                if (existingAudio) { 
+                    existingAudio.pause();
+                    existingAudio.removeAttribute('src');
+                    existingAudio.srcObject = null;
+                    existingAudio.remove(); 
+                }
                 activeAudioElements = activeAudioElements.filter(a => a.dataset.peerId !== call.peer);
-
-                // 2) AudioContext uyanık olsun
+                
                 if (audioCtx.state === 'suspended') audioCtx.resume();
+                
+                const uName = call.metadata?.username || "Konuk"; const uAvatar = call.metadata?.avatar || "👤"; const uUid = call.metadata?.uid || "anon";
+                let analyser = null;
 
-                const uName   = call.metadata?.username || 'Konuk';
-                const uAvatar = call.metadata?.avatar   || '👤';
-                const uUid    = call.metadata?.uid      || 'anon';
-
-                // 3) Analyser — SADECE ölçüm amaçlı, destination'a BAĞLANMAZ
-                //    Böylece Web Audio API ses çalmaz; çalmayı <audio> yapar.
-                //    Bu, çift-çalma ve referans kaynaklı yankıyı tamamen engeller.
-                const source   = audioCtx.createMediaStreamSource(audioStream);
-                const analyser = audioCtx.createAnalyser();
-                analyser.fftSize = 512;
-                analyser.smoothingTimeConstant = 0.6;
-                source.connect(analyser);
-                // ↑ analyser → audioCtx.destination YOK. Kasıtlı.
-
-                const el = createVoiceAvatarElement(call.peer, uName, uAvatar, uUid);
-                activeSpeakers.set(call.peer, { analyser, element: el, isLocal: false });
-
-                // 4) <audio> elementi — tek gerçek ses çıkış noktası
-                const audio = document.createElement('audio');
-                audio.srcObject  = audioStream;
-                audio.autoplay   = true;
-                audio.playsInline = true;
-                audio.muted      = isSpeakerMuted;
-                audio.dataset.peerId   = call.peer;
-                audio.dataset.whisper  = call.metadata?.whisper ? 'true' : 'false';
-
-                // Çıkış cihazı atama (Chrome/Edge destekler)
-                if (typeof audio.setSinkId === 'function' && selectedSpeakerId !== 'default') {
-                    audio.setSinkId(selectedSpeakerId).catch(() => {});
+                if (!isMobile) {
+                    const source = audioCtx.createMediaStreamSource(audioStream);
+                    analyser = audioCtx.createAnalyser(); analyser.fftSize = 256; source.connect(analyser); 
                 }
 
-                // Mobilde ses seviyesi KESİNLİKLE 1.0 — donanım AEC bunu gerektirir
+                const el = createVoiceAvatarElement(call.peer, uName, uAvatar, uUid); 
+                activeSpeakers.set(call.peer, { analyser: analyser, element: el, isLocal: false });
+
+                const audio = document.createElement('audio'); audio.srcObject = audioStream; audio.autoplay = true; audio.playsInline = true; audio.muted = isSpeakerMuted; audio.dataset.peerId = call.peer;
+                
+                const isWhisper = call.metadata?.whisper; audio.dataset.whisper = isWhisper ? 'true' : 'false';
+                if(typeof audio.setSinkId !== 'undefined' && selectedSpeakerId !== 'default') audio.setSinkId(selectedSpeakerId).catch(()=>{});
+                
                 if (isMobile) {
-                    audio.volume = 1.0;
+                    audio.volume = 1.0; // MOBİLDE SES KISILIRSA AEC BOZULUR. KESİNLİKLE 1.0 KALMALI.
                 } else {
-                    const base  = document.getElementById('mix-chat-vol').value / 100;
-                    const pVol  = peerVolumes[call.peer] ?? 1;
-                    const whisp = call.metadata?.whisper ? 0.3 : 1;
-                    audio.volume = base * pVol * whisp;
+                    const baseVol = document.getElementById('mix-chat-vol').value / 100; const pVol = peerVolumes[call.peer] !== undefined ? peerVolumes[call.peer] : 1;
+                    audio.volume = (isWhisper ? baseVol * 0.3 : baseVol) * pVol;
                 }
+                
+                document.body.appendChild(audio); activeAudioElements.push(audio);
+                audio.play().catch(e => console.warn("Ses otomatik oynatılamadı.", e));
 
-                document.body.appendChild(audio);
-                activeAudioElements.push(audio);
-                audio.play().catch(() => {});
-
-                call.on('close', () => {
-                    audio.pause(); audio.srcObject = null; audio.remove();
-                    removeVoiceAvatar(call.peer);
-                    activeAudioElements = activeAudioElements.filter(a => a !== audio);
+                call.on('close', () => { 
+                    audio.pause(); audio.removeAttribute('src'); audio.srcObject = null; audio.remove(); 
+                    removeVoiceAvatar(call.peer); activeAudioElements = activeAudioElements.filter(a => a !== audio); 
                 });
             });
         }
@@ -1540,8 +1398,7 @@
                 btnMic.classList.remove('active'); btnMic.innerHTML = "🎤<span class='hide-on-mobile'> Mikrofon</span>"; btnMic.style.background = "#444";
                 activeVoiceCalls.forEach(call => call.close()); activeVoiceCalls.clear(); pttBtnMobile.style.display = 'none';
                 removeVoiceAvatar('local'); 
-                globalMicEnabled = false;
-                vadGateOpen = true; clearTimeout(vadGateTimer);
+                globalMicEnabled = false; 
                 showToast("Mikrofon kapatıldı.", "info");
             } else {
                 try {
@@ -1573,12 +1430,6 @@
 
                     micStream = await navigator.mediaDevices.getUserMedia(constraints);
                     
-                    // Kulaklık takılı değilse uyar (her oturum için bir kez)
-                    if (!headphoneCheckDone) {
-                        headphoneCheckDone = true;
-                        detectHeadphones().then(has => { if (!has) showEchoBanner(); });
-                    }
-
                     if(isPttMode) { micStream.getAudioTracks().forEach(t => t.enabled = false); btnMic.innerHTML = "🛑<span class='hide-on-mobile'> Bekliyor</span>"; btnMic.style.background = "#e50914"; pttBtnMobile.style.display = 'flex'; } 
                     else { btnMic.classList.add('active'); btnMic.innerHTML = "🎤<span class='hide-on-mobile'> Açık</span>"; btnMic.style.background = ""; }
                     
@@ -1708,125 +1559,6 @@
             hostConnection.on('data', handleIncomingData);
             
             if (globalMicEnabled && micStream) { const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid }; activeVoiceCalls.set(targetHostId, peer.call(targetHostId, micStream, { metadata: voiceMeta })); }
-            if (faceCamStream) { const camMeta = { type: 'facecam', username: myUsername, uid: myUid }; myFaceCamCalls.push(peer.call(targetHostId, faceCamStream, { metadata: camMeta })); }
-        };
-
-        document.getElementById('btn-viewer').addEventListener('click', () => {
-            roomCode = document.getElementById('room-input').value.trim(); myUsername = document.getElementById('username-input').value.trim() || "İzleyici";
-            if(!roomCode) return showToast("Lütfen Oda Kodu girin!", "error");
-            isHost = false; document.getElementById('admin-panel').style.display = 'none';
-
-            get(ref(database, 'rooms/' + roomCode)).then((snapshot) => {
-                if(!snapshot.exists()) return showToast("Böyle bir oda bulunamadı!", "error");
-                
-                const rData = snapshot.val();
-                const lastActive = rData.lastActive || rData.createdAt || Date.now();
-                
-                // --- 15 DAKİKA KONTROLÜ (İzleyici katılırken) ---
-                if (Date.now() - lastActive > 15 * 60 * 1000) {
-                    remove(ref(database, 'rooms/' + roomCode));
-                    return showToast("Bu oda 15 dakikadan uzun süredir boş olduğu için kapatıldı!", "error");
-                }
-
-                hostId = rData.hostId;
-                statusText.innerText = "Bağlanılıyor..."; switchScreen(roomCode, "İzleyici");
-                
-                peer = new Peer(); 
-                peer.on('open', () => { statusText.innerText = "Yayıncı aranıyor..."; window.connectToNewHost(hostId); });
-                setupPeerListeners();
-                
-                peer.on('error', err => { if (err.type === 'peer-unavailable') { showToast("Yayıncıya ulaşılamıyor (Oda kapanmış olabilir)!", "error"); setTimeout(executeDisconnect, 2500); } });
-            }).catch(error => { showToast("Oda kontrol edilemedi.", "error"); });
-        });
-
-        document.getElementById('force-play-btn').addEventListener('click', () => { playOverlay.style.display = 'none'; videoElement.play(); if(syncActive && !isHost) syncVideo.play(); });
-
-        function sendMessage() {
-            const text = chatInput.value.trim(); if(!text) return;
-            if (text.startsWith('/')) {
-                if (!isHost) { showToast("Bu komutları sadece oda kurucusu kullanabilir!", "error"); chatInput.value = ''; return; }
-                if (text === '/zar' || text === '/roll') { const dice = Math.floor(Math.random() * 6) + 1; const msg = `🎲 Zar atıldı ve ${dice} geldi!`; broadcastData({ type: 'CHAT', sender: "Sistem", avatar: "🤖", text: msg }); addChatMessage("Sistem", "🤖", msg, false); chatInput.value = ''; return; }
-                if (text.startsWith('/admin ')) { const msg = text.replace('/admin ', ''); broadcastData({ type: 'ADMIN_MSG', text: msg }); window.showAdminAnnouncement(msg); chatInput.value = ''; return; }
-                if (text === '/korku' || text === '/boo') { window.triggerEffect('scare'); broadcastData({ type: 'EFFECT', effect: 'scare' }); chatInput.value = ''; return; }
-                if (text === '/party') { window.triggerEffect('party'); broadcastData({ type: 'EFFECT', effect: 'party' }); chatInput.value = ''; return; }
-                showToast("Geçersiz komut!", "error"); return;
-            }
-            broadcastData({ type: 'CHAT', sender: myUsername, avatar: myAvatar, text: text, peerId: (peer?peer.id:''), uid: myUid }); addChatMessage(myUsername, myAvatar, text, true, (peer?peer.id:''), myUid); chatInput.value = '';
-        }
-
-        document.getElementById('chat-send-btn').addEventListener('click', sendMessage); document.getElementById('chat-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') sendMessage(); });
-
-        window.becomeHost = async function(mode = 'screen') {
-            isHost = true; document.getElementById('admin-panel').style.display = 'block';
-            if (hostConnection) hostConnection.close(); showToast("Yayıncı yetkisi size geçti! Lütfen yayını başlatın.", "success");
-            
-            startRoomHeartbeat(); // Yeni host kalp atışını devralır
-
-            if (mode === 'screen') {
-                try { myStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true }); } catch (err) { try { myStream = await navigator.mediaDevices.getDisplayMedia({ video: true }); } catch (err2) { return showToast("Ekran paylaşım izni verilmedi!", "error"); } }
-                videoElement.srcObject = myStream; videoElement.muted = true; 
-            } else { myStream = null; videoElement.style.display = 'none'; syncMediaContainer.style.display = 'block'; document.getElementById('sync-media-modal').classList.add('active'); }
-            document.getElementById('role-display').innerText = "Yayıncı";
-        };
-
-        window.transferHost = function(targetPeerId) {
-            const t = viewers.get(targetPeerId);
-            if(t && confirm(`${t.username} adlı kullanıcıyı yeni Yayıncı yapmak istiyor musunuz?`)) {
-                
-                const roomRef = ref(database, 'rooms/' + roomCode);
-                if(roomHeartbeat) clearInterval(roomHeartbeat); // Kendi kalp atışımı durduruyorum
-
-                set(roomRef, { hostId: targetPeerId, hostName: t.username, createdAt: serverTimestamp(), lastActive: Date.now() }).then(() => {
-                    broadcastData({ type: 'HOST_TRANSFER', newHostId: targetPeerId });
-                    isHost = false; document.getElementById('admin-panel').style.display = 'none';
-                    if (myStream) myStream.getTracks().forEach(track => track.stop()); myStream = null;
-                    viewers.clear(); document.getElementById('role-display').innerText = "İzleyici"; window.connectToNewHost(targetPeerId);
-                });
-            }
-        };
-
-        function updateAdminPanel() {
-            const list = document.getElementById('admin-user-list'); list.innerHTML = '';
-            viewers.forEach((v, peerId) => {
-                const li = document.createElement('li'); li.className = 'admin-user-item';
-                li.innerHTML = `<span><div style="width:20px;height:20px;display:inline-block;border-radius:50%;overflow:hidden;vertical-align:middle;">${renderAvatarHtml(v.avatar, v.uid)}</div> ${v.username}</span> <div><button class="kick-btn" style="background:#2196F3;" onclick="window.transferHost('${peerId}')">Devret</button> <button class="kick-btn" onclick="window.kickUser('${peerId}')">At</button></div>`;
-                list.appendChild(li);
-            });
-        }
-        window.kickUser = function(pId) { const t = viewers.get(pId); if(t && confirm(`${t.username} atılsın mı?`)) { t.conn.send({ type: 'KICK' }); setTimeout(() => t.conn.close(), 500); } };
-        document.getElementById('btn-clear-chat').addEventListener('click', () => { if(confirm("Sohbeti sil?")) { chatMessages.innerHTML = ''; broadcastData({ type: 'CLEAR_CHAT' }); showToast("Sohbet temizlendi.", "info"); } });
-    </script>
-</body>
-</html>= () => { showToast("Paylaşım durduruldu.", "error"); showWrappedAndDisconnect(); };
-            } else {
-                myStream = null; videoElement.style.display = 'none'; syncMediaContainer.style.display = 'block'; document.getElementById('sync-media-modal').classList.add('active');
-            }
-
-            peer = new Peer(); 
-            peer.on('open', (id) => { 
-                hostId = id;
-                const roomRef = ref(database, 'rooms/' + roomCode);
-                
-                // 15 dk kapanma kontrolü için lastActive set ediliyor
-                set(roomRef, { hostId: hostId, hostName: myUsername, createdAt: serverTimestamp(), lastActive: Date.now() }).then(() => {
-                    startRoomHeartbeat(); // Her dakika veritabanında yaşadığını belirt
-                });
-                
-                statusText.innerText = "Yayın Aktif!"; switchScreen(roomCode, "Yayıncı"); showToast("Oda başarıyla kuruldu.", "success"); window.applyTheme(currentTheme); 
-            });
-            setupPeerListeners();
-        };
-
-        document.getElementById('btn-host-screen').addEventListener('click', () => window.startHostingProcess('screen'));
-        document.getElementById('btn-host-sync-menu').addEventListener('click', () => window.startHostingProcess('sync'));
-
-        window.connectToNewHost = function(targetHostId) {
-            statusText.innerText = "Bağlanıyor..."; if (hostConnection) hostConnection.close();
-            hostConnection = peer.connect(targetHostId, { metadata: { username: myUsername, avatar: myAvatar, uid: myUid } });
-            hostConnection.on('open', () => { statusText.innerText = "Görüntü bekleniyor..."; showToast("Yayıncıya bağlanıldı!", "success"); });
-            hostConnection.on('data', handleIncomingData);
-            
-            if (globalMicEnabled && micStream) { const voiceMeta = { type: 'voice', whisper: isWhisperMode, username: myUsername, avatar: myAvatar, uid: myUid }; const streamToSend = processedMicStream || micStream; activeVoiceCalls.set(targetHostId, peer.call(targetHostId, streamToSend, { metadata: voiceMeta })); }
             if (faceCamStream) { const camMeta = { type: 'facecam', username: myUsername, uid: myUid }; myFaceCamCalls.push(peer.call(targetHostId, faceCamStream, { metadata: camMeta })); }
         };
 
